@@ -1,0 +1,63 @@
+<div class="container">
+  <div class="alert text-center" *ngIf="friendRequest">
+    <h3>Nuova richiesta amico:</h3>
+    <p>Username: {{friendRequest.username}}<br>ID: {{friendRequest.id}}</p>
+    <div class="row justify-content-center">
+      <div class="col-5">
+        <button type="button" class="btn btn-success btn-lg"
+          (click)="complete_friend_request(friendRequest, 'ACCEPT')">Accetta</button>
+      </div>
+      <div class="col-5">
+        <button type="button" class="btn btn-danger btn-lg"
+          (click)="complete_friend_request(friendRequest, 'DENY')">Rifiuta</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<div class="row">
+  <div class="col-9">
+    <p>Qui vanno le info etc..</p>
+  </div>
+  <div class="col-3">
+    <p>Qui va la friendlist</p>
+    <div *ngFor="let friend of friendList" class="card" style="margin: 5px">
+      <div class="nearby-user">
+        <div class="row">
+          <div class="col-md-3 col-sm-3 py-2">
+            <img src="https://bootdey.com/img/Content/avatar/avatar7.png" alt="user" class="profile-photo-lg">
+          </div>
+          <div class="col-md-9 col-sm-9 py-2">
+            <h5>{{friend.username}}</h5>
+            <p>{{friend._id}}</p>
+          </div>
+        </div>
+        <div class="row text-center py-2">
+          <div class="col-md-4 col-sm-4">
+            <button type="button" class="btn btn-outline-danger" (click)="remove_friend(friend._id)" >Rimuovi</button>
+          </div>
+          <div class="col-md-4 col-sm-4">
+            <button type="button" class="btn btn-outline-primary" [routerLink]="['/friend-chat', friend._id]">Messaggia</button>
+          </div>
+          <div class="col-md-4 col-sm-4">
+            <button type="button" class="btn btn-outline-primary">Sfida</button>  
+          </div>
+        </div>
+      </div>
+
+      <!-- <div class="card-body">
+            <h5 class="card-title"><i class="far fa-envelope"></i>&nbsp;{{friend.username}}</h5>
+            <h6 class="card-subtitle mb-2 text-muted">{{friend.id}}</h6>
+         </div> -->
+    </div>
+    <form class="row g-3">
+      <div class="col-auto">
+        <input #friendIdTxt type="text" class="form-control" id="friendTxt" placeholder="Inserisci l'id dell'utente">
+      </div>
+      <div class="col-auto">
+        <button type="submit" class="btn btn-primary mb-3" (click)="send_friend_request(friendIdTxt.value)">Add</button>
+      </div>
+    </form>
+  </div>
+</div>
