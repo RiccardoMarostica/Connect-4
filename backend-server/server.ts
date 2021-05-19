@@ -26,10 +26,8 @@
  * 3- Send messages: Inside the application an user can send a message to a friend, or during a game. 
  *    
  *    REQUEST                 ATTRIBUTES        METHOD            DESCRIPTION
- *    /messages               ?user=            GET               Return all the posted messages with a specific user, retrieving these from MongoDB
- *                            ?match=           GET               Return all the posted messages during a specific game, retrieving these from MongoDB
- *    /messages               ?user=            POST              Send a message to a specific user, saving the current message inside MongoDB
- *                            ?match=           POST              Send a message to a specific user, saving the current message inside MongoDB
+ *    /messages               ?id=              GET               Return all the posted messages with a specific user, or return all the posted messages during a specific game, retrieving these from MongoDB using the id.
+ *    /messages               ?id=              POST              Send a message to a specific user, or send a message inside the game chat, saving the current message inside MongoDB
  * 
  * 4- Statistics: Each player can see his statistics during the period. Also, moderators can see the statistics of any other user
  * 
@@ -318,63 +316,35 @@ app.post("/register", (req, res, next) => {
  */
 
 
-app.route("/messages").get(auth, (req, res, next) => {
+app.route("/messages").get(auth, async function (req, res, next) {
 
-   /**
-    * This condition check the parameter used inside the request.
-    * As the POST method, there are two parameters valid: user and match.
-    * If there is a different parameter the response will contain an error
-    * message.
-    */
-   if (req.query.user) {
+   if (req.query.id) {
+      /**
+       * First of all check if the document exists inside mongoDB.
+       * If yes, return all the messages about the current id.
+       * Otherwise, create a message document with empty message
+       */
+      var result: any = await message.getModel().find({ _id: req.query.id }).sort({ timestamp: -1 });
 
-      // Take my id and the id of the friend. From these two datas retrieve the messages between the two
-      var sender = req.user["id"];
-      var recipent = req.query.user;
+      // Result is empty so no document is present inside mongo. Create a new one
+      if (result == undefined || result.length == 0 || result == null) {
+         var id: any = req.query.id;
+         console.log("TEST: ".gray + "message id: " + id);
+         const doc = {
+            _id: id,
+            messages: []
+         }
+         result = await message.getModel().create(doc);
 
-      console.log("SENDER: " + sender + " RECIPENT: " + recipent);
+         console.log("SUCCESS: ".green + "Create a new chat room!");
 
-      // Find all the messages bewteen the two users
-      message.getModel().find({
-         sender: sender,
-         recipent: recipent
-      }).sort({ timestamp: -1 }) // Sorting using timestamp
-         .then((documents) => {
-
-            // Query is correct, return the document
-            console.log("SUCCESS: ".green + "Messages between users retrieved");
-
-            return res.status(200).json(documents);
+         return res.status(200).json({
+            error: false,
+            message: "Create a new chat room!"
          })
-         .catch((reason) => {
-            return next({
-               stausCode: 404,
-               error: true,
-               message: "DB error: " + reason
-            })
-         });
-   } else if (req.query.game) {
-      // Take the id of the game so server can retrieve all the messages
-      var recipent = req.query.game;
-
-      // Find all the messages send during a specific game
-      message.getModel().find({
-         recipent: recipent
-      }).sort({ timestamp: -1 }) // Sorting using timestamp
-         .then((documents) => {
-
-            // Query is correct, return the document
-            console.log("SUCCESS: ".green + "Messages sent during a game retrieved");
-
-            return res.status(200).json(documents);
-         })
-         .catch((reason) => {
-            return next({
-               stausCode: 404,
-               error: true,
-               message: "DB error: " + reason
-            })
-         });
+      } else { // There is a chat inside mongo so retrieve it
+         return res.status(200).json(result[0]);
+      }
    } else {
       // An error occurred cause user make a request with parameters inside query that are not valid. Call next middleware
       console.log("ERROR: ".red + "Request query parameter is not valid");
@@ -386,27 +356,19 @@ app.route("/messages").get(auth, (req, res, next) => {
       })
    }
 
-
 }).post(auth, (req, res, next) => {
 
 
-   // Take from the request body the message. Then complete it with the last infos
-   var receiveMessage = req.body;
-   receiveMessage.timestamp = new Date();
-   receiveMessage.sender = req.user["id"];
-
    /**
-    * This condition check the query parameters when user request to post a message
-    * Two parameters are valid: user and match. The first one is used to send a message
-    * to a friend, insted the second one is used to send a message during a match
-    * 
+    * This condition check the query parameters when user request to post a message 
     * If an user make a request with different parameters, server will send a response with
     * an error.
     */
-   if (req.query.user) {
-      receiveMessage.recipent = req.query.user;
-   } else if (req.query.match) {
-      receiveMessage.recipent = req.query.user;
+   if (req.query.id) {
+      // Take from the request body the message. Then complete it with the last infos
+      var receiveMessage = req.body;
+      receiveMessage.timestamp = new Date();
+      receiveMessage.author = req.user["id"];
    } else {
       // An error occurred cause user make a request with parameters inside query that are not valid. Call next middleware
       console.log("ERROR: ".red + "Request query parameter is not valid");
@@ -421,18 +383,13 @@ app.route("/messages").get(auth, (req, res, next) => {
    // Check if receiveMessage is a message or not
    if (message.isMessage(receiveMessage)) {
 
-      message.getModel().create(receiveMessage).then((data) => {
+      message.getModel().updateOne({ _id: req.query.id }, { $push: { messages: receiveMessage } }).then(() => {
 
-         // Create query is successfull, now the message is saved on MongoDB.
-         // After that, just notify that a messages has been posted
-         console.log("SUCCESS: ".green + "Message sent. Author: " + receiveMessage.sender + " Recipent: " + receiveMessage.recipent);
+         console.log("SUCCESS: ".green + "Added a new message inside the chat id: " + req.query.id);
 
-         // TODO: Notificare a tutti che un messaggio è stato postato (oppure al singolo utente?)
-
+         // TODO: emit to users that a message has been posted
          return res.status(200).json({
-            error: false,
-            message: "Message sent to user!",
-            id: data._id
+            message: "Message added inside the chat!"
          })
       }).catch((reason) => {
 
@@ -623,7 +580,7 @@ app.route("/friends").get(auth, (req, res, next) => {
       statusCode: 400,
       error: true,
       message: "An error occurred while deleting a friend from friend list!"
-   })   
+   })
 });
 
 

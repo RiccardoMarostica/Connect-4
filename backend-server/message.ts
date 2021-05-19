@@ -20,6 +20,11 @@ import mongoose = require('mongoose'); // Module designed to use MongoDB in an a
  * Also, inside this interface save how send the message and who is recipent (it can be an user or a match)
  * This interface is exported so it can be used inside other file
  */
+export interface Chat extends mongoose.Document {
+   _id: string,
+   messages: Array<Message>
+}
+
 export interface Message {
    content: string,
    timestamp: string,
@@ -39,29 +44,32 @@ export function isMessage(arg: any): arg is Message {
 }
 
 /**
- * We use Mongoose to perform the ODM between our application and mongodb. 
- * To do that we need to create a Schema and an associated
- * data model that will be mapped into a mongodb collection
+ * Message schema:
+ * Inside the schema used on mongoDB there is an _id, that can be a string
+ * formatted as: idUser1_idUser2 or it can have the match id.
+ * After that there is an array of message. In this case inside each position
+ * there are the informations about a message, as the sender, the content and the
+ * timestamp.
  */
-var messageSchema = new mongoose.Schema({
-   content: {
-      type: mongoose.SchemaTypes.String,
-      required: true
-   },
-   timestamp: {
-      type: mongoose.SchemaTypes.Date,
-      required: true
-   },
-   sender: {
-      type: mongoose.SchemaTypes.String,
-      required: true
-   },
-   recipent: {
-      type: mongoose.SchemaTypes.String,
-      required: true
+ var messageSchema = new mongoose.Schema({
+   _id: mongoose.SchemaTypes.String,
+   messages: {
+      type: [{
+         content: {
+            type: mongoose.SchemaTypes.String,
+            required: true
+         },
+         timestamp: {
+            type: mongoose.SchemaTypes.Date,
+            required: true
+         },
+         author: {
+            type: mongoose.SchemaTypes.String,
+            required: true
+         }
+      }]
    }
-})
-
+});
 /**
  * Function used to get the current schema about a message
  * 
@@ -78,7 +86,7 @@ var messageModel;  // This is not exposed outside the model
  */
 export function getModel(): mongoose.Model<mongoose.Document> {
    if (!messageModel) {
-      messageModel = mongoose.model('Message', getSchema())
+      messageModel = mongoose.model('Chat', getSchema())
    }
    return messageModel;
 }

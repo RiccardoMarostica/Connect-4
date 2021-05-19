@@ -16,30 +16,34 @@ const mongoose = require("mongoose"); // Module designed to use MongoDB in an as
  * @returns A boolean that confirm if arg is a Message or not
  */
 function isMessage(arg) {
-    return arg && arg.content && typeof (arg.content) == 'string' && arg.timestamp && arg.timestamp instanceof Date && arg.sender && typeof (arg.sender) == 'string' && arg.recipent && typeof (arg.recipent) == 'string';
+    return arg && arg.content && typeof (arg.content) == 'string' && arg.timestamp && arg.timestamp instanceof Date && arg.author && typeof (arg.author) == 'string';
 }
 exports.isMessage = isMessage;
 /**
- * We use Mongoose to perform the ODM between our application and mongodb.
- * To do that we need to create a Schema and an associated
- * data model that will be mapped into a mongodb collection
+ * Message schema:
+ * Inside the schema used on mongoDB there is an _id, that can be a string
+ * formatted as: idUser1_idUser2 or it can have the match id.
+ * After that there is an array of message. In this case inside each position
+ * there are the informations about a message, as the sender, the content and the
+ * timestamp.
  */
 var messageSchema = new mongoose.Schema({
-    content: {
-        type: mongoose.SchemaTypes.String,
-        required: true
-    },
-    timestamp: {
-        type: mongoose.SchemaTypes.Date,
-        required: true
-    },
-    sender: {
-        type: mongoose.SchemaTypes.String,
-        required: true
-    },
-    recipent: {
-        type: mongoose.SchemaTypes.String,
-        required: true
+    _id: mongoose.SchemaTypes.String,
+    messages: {
+        type: [{
+                content: {
+                    type: mongoose.SchemaTypes.String,
+                    required: true
+                },
+                timestamp: {
+                    type: mongoose.SchemaTypes.Date,
+                    required: true
+                },
+                author: {
+                    type: mongoose.SchemaTypes.String,
+                    required: true
+                }
+            }]
     }
 });
 /**
@@ -57,7 +61,7 @@ var messageModel; // This is not exposed outside the model
  */
 function getModel() {
     if (!messageModel) {
-        messageModel = mongoose.model('Message', getSchema());
+        messageModel = mongoose.model('Chat', getSchema());
     }
     return messageModel;
 }
