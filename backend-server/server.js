@@ -20,9 +20,8 @@
  *
  *    REQUEST                 ATTRIBUTES        METHOD            DESCRIPTION
  *    /friends                ---               GET               Retrieve user's friendlist
- *    /friends                ?user=            POST              Send a request to the friend passed from parameters
- *                            ?status=          POST              Accept or deny friend request
- *    /friends                ?user=            DELETE            Remove a friend form user's friendlist
+ *    /friends                ?user=            POST              Add a new friend, using his id
+ *    /friends/:user_id       ---               DELETE            Remove a friend form user's friendlist
  *
  * 3- Send messages: Inside the application an user can send a message to a friend, or during a game.
  *
@@ -502,7 +501,8 @@ app.route("/friends").get(auth, (req, res, next) => {
     // Check if inside the paramaters there is one called user
     if (req.query.user) {
         var otherUserId = req.query.user;
-        // Remove the friend from user friendlist in mongoDB document
+        console.log("Other user id: " + otherUserId);
+        //TODO: Controllare rimozione account
         user.getModel().updateOne({ _id: req.user["id"] }, { $pull: { friendlist: { _id: otherUserId } } }).then((data) => {
             console.log("SUCCESS: ".green + "Delete user: " + otherUserId + " from user: " + req.user["id"] + " friend list! ");
         }).catch((err) => {
@@ -512,7 +512,6 @@ app.route("/friends").get(auth, (req, res, next) => {
                 message: "DB error: " + err
             });
         });
-        // Remove the user from friend friendlist in mongoDB document
         user.getModel().updateOne({ _id: otherUserId }, { $pull: { friendlist: { _id: req.user["id"] } } }).then((data) => {
             console.log("SUCCESS: ".green + "Delete user: " + req.user["id"] + " from user: " + otherUserId + " friend list! ");
         }).catch((err) => {
@@ -522,12 +521,10 @@ app.route("/friends").get(auth, (req, res, next) => {
                 message: "DB error: " + err
             });
         });
-        // Both call to mongoDB was successfull so just return a 200 code that everything goes well
         return res.status(200).json({
             message: "User removed from friend list"
         });
     }
-    // User doesn't pass a paramaters in query called user so return an error
     return next({
         statusCode: 400,
         error: true,

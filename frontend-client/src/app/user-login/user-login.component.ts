@@ -26,7 +26,7 @@ export class UserLoginComponent implements OnInit {
 
   login (mail: string, password: string, remember: boolean) {
     this.user.login(mail, password, remember).subscribe( (value) => {
-      console.log("SUCCESS: Login granted!");
+      console.log("SUCCESS: Login granted! Token");
       this.errorMessage = undefined;
       this.router.navigate(["/home-page"]);
     }, (err) => {

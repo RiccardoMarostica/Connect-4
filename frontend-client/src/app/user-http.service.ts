@@ -4,7 +4,7 @@ import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http'; // I
 import { Observable, throwError } from 'rxjs'; // When you make an HTTP call, the return value is an Observable so import it
 import { tap, catchError } from 'rxjs/operators';
 
-import jwtDecode from 'jwt-decode';
+import jwt from 'jwt-decode';
 
 interface TokenData {
   username: string,
@@ -156,8 +156,6 @@ export class UserHttpService {
   }
 
   get_user_id(): string {
-    return (jwtDecode(this.token) as TokenData).id;
+    return (jwt(this.token) as TokenData).id;
   }
-
-
 }
