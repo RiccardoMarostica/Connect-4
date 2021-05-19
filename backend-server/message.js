@@ -16,7 +16,7 @@ const mongoose = require("mongoose"); // Module designed to use MongoDB in an as
  * @returns A boolean that confirm if arg is a Message or not
  */
 function isMessage(arg) {
-    return arg && arg.content && typeof (arg.content) == 'string' && arg.timestamp && arg.timestamp instanceof Date && arg.sender && typeof (arg.sender) == 'string' && arg.recipent && typeof (arg.recipent) == 'string';
+    return arg && arg.content && typeof (arg.content) == 'string' && arg.timestamp && arg.timestamp instanceof Date && arg.author && typeof (arg.author) == 'string';
 }
 exports.isMessage = isMessage;
 /**
