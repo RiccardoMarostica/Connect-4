@@ -28,7 +28,9 @@ exports.isMessage = isMessage;
  * timestamp.
  */
 var messageSchema = new mongoose.Schema({
-    _id: mongoose.SchemaTypes.String,
+    participants: {
+        type: [mongoose.SchemaTypes.ObjectId]
+    },
     messages: {
         type: [{
                 content: {

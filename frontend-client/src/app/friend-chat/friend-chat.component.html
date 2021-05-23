@@ -1,1 +1,54 @@
-<p>{{id}}</p>
+<div class="container">
+
+   <div class="form-group d-grid gap-2 py-4">
+      <h1 class="display-6">Chat</h1>
+      <textarea class="form-control" #messagetxt id="messagetext" rows="3"
+         placeholder="Enter your message here"></textarea>
+      <button type="submit" class="btn btn-outline-primary btn-lg mt-2"
+         (click)="postChatMessages(messagetxt.value)">Post<i class="fas fa-paper-plane"></i></button>
+   </div>
+   <div class="row">
+      <div class="col-12">
+         <div *ngFor="let message of chat.messages" class="card" style="margin: 5px">
+            <div *ngIf="message.author==friendId; else userMessage">
+               <div class="card-body friendMessage">
+                  <!-- <h5 class="card-title"><i class="far fa-envelope"></i>&nbsp;{{message.author}}</h5> -->
+                  <h6 class="card-subtitle mb-2 text-muted">{{message.timestamp | date}} / {{message.timestamp |
+                     date:'shortTime'}}</h6>
+                  <p class="card-text">{{ message.content }}</p>
+               </div>
+            </div>
+
+            <ng-template #userMessage>
+               <div class="card-body">
+                  <!-- <h5 class="card-title"><i class="far fa-envelope"></i>&nbsp;{{message.author}}</h5> -->
+                  <h6 class="card-subtitle mb-2 text-muted">{{message.timestamp | date}} / {{message.timestamp |
+                     date:'shortTime'}}</h6>
+                  <p class="card-text">{{ message.content }}</p>
+               </div>
+            </ng-template>
+
+         </div>
+
+      </div>
+   </div>
+</div>
+
+
+
+
+<!-- <ul class="nav justify-content-end bottomfooter">
+ <li class="nav-item">
+   <div class="btn-group dropup">
+     <button type="button" class="btn btn-secondary dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+       {{us.get_username()}}
+     </button>
+     <div class="dropdown-menu">
+       <div class="dropdown-item" href="#">{{us.get_mail()}}</div>
+       <div *ngIf="us.is_admin()" class="dropdown-item" href="#"><i class="fas fa-check"></i> Admin role</div>
+       <div *ngIf="us.is_moderator()" class="dropdown-item" href="#"><i class="fas fa-check"></i> Moderator role</div>
+       <div class="dropdown-divider"></div>
+     </div>
+   </div>
+ </li>
+</ul> -->

@@ -9,12 +9,13 @@ import { FormsModule } from '@angular/forms';
 import { UserRegistrationComponent } from './user-registration/user-registration.component';
 import { UserLoginComponent } from './user-login/user-login.component';
 import { HomePageComponent } from './home-page/home-page.component';
+import { FriendChatComponent } from './friend-chat/friend-chat.component';
 import { AppComponent } from './app.component';
 
 // Service modules
 import { UserHttpService } from './user-http.service';
 import { SocketioService } from './socketio.service';
-import { FriendChatComponent } from './friend-chat/friend-chat.component';
+import { MessageHttpService } from './message-http.service';
 
 @NgModule({
   declarations: [ // The set of components, directives, and pipes that belong to this module.
@@ -32,7 +33,8 @@ import { FriendChatComponent } from './friend-chat/friend-chat.component';
   ],
   providers: [ // The set of injectable objects that are available in the injector of this module.
     { provide: UserHttpService, useClass: UserHttpService },
-    { provide: SocketioService, useClass: SocketioService }
+    { provide: SocketioService, useClass: SocketioService },
+    { provide: MessageHttpService, useClass: MessageHttpService }
   ],
   bootstrap: [AppComponent] // The set of components that are bootstrapped when this module is bootstrapped
 })

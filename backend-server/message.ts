@@ -21,7 +21,10 @@ import mongoose = require('mongoose'); // Module designed to use MongoDB in an a
  * This interface is exported so it can be used inside other file
  */
 export interface Chat extends mongoose.Document {
-   _id: string,
+   _id: mongoose.Schema.Types.ObjectId,
+   participants: {
+      type: [mongoose.Schema.Types.ObjectId]
+   }
    messages: Array<Message>
 }
 
@@ -51,8 +54,10 @@ export function isMessage(arg: any): arg is Message {
  * there are the informations about a message, as the sender, the content and the
  * timestamp.
  */
- var messageSchema = new mongoose.Schema({
-   _id: mongoose.SchemaTypes.String,
+var messageSchema = new mongoose.Schema({
+   participants: {
+      type: [mongoose.SchemaTypes.ObjectId]
+   },
    messages: {
       type: [{
          content: {

@@ -12,6 +12,7 @@ export class HomePageComponent implements OnInit {
 
   public friendList: any = [];
   public friendRequest: any = undefined;
+  public friendGameRequest: any = undefined;
 
   constructor(private user: UserHttpService, private router: Router, private socket: SocketioService) { }
 
@@ -40,7 +41,13 @@ export class HomePageComponent implements OnInit {
     this.socket.listen("removefriend_" + this.user.get_user_id()).subscribe(() => {
       console.log("Other use removed you from friend list");
       this.get_friends();
-    })
+    });
+
+    this.socket.listen("game_request_" + this.user.get_user_id()).subscribe((data) => {
+      console.log("Request to create a new game with: " + data.userId);
+      this.friendGameRequest = data;
+      console.log("TEST: " + JSON.stringify(this.friendGameRequest));
+    });
   }
 
   /**
@@ -87,6 +94,12 @@ export class HomePageComponent implements OnInit {
     this.user.remove_friend(userId).subscribe(() => {
       this.get_friends();
     });
+  }
+
+  create_friend_game(userId: string): void {
+    this.user.friend_request_game(userId).subscribe(() => {
+      console.log("Request to create a new game is sent to the other player");
+    })
   }
 
 }

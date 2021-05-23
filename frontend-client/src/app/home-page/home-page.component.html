@@ -15,10 +15,26 @@
   </div>
 </div>
 
+<div class="container">
+  <div class="alert text-center" *ngIf="friendGameRequest">
+    <h3>Richiesta creazione nuova partita contro:</h3>
+    <p>Username: {{friendGameRequest.username}}</p>
+    <div class="row justify-content-center">
+      <div class="col-5">
+        <button type="button" class="btn btn-success btn-lg">Accetta</button>
+      </div>
+      <div class="col-5">
+        <button type="button" class="btn btn-danger btn-lg">Rifiuta</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 
 <div class="row">
   <div class="col-9">
     <p>Qui vanno le info etc..</p>
+    <button type="button" class="btn btn-outline-primary">Ricerca partita</button>
   </div>
   <div class="col-3">
     <p>Qui va la friendlist</p>
@@ -35,13 +51,14 @@
         </div>
         <div class="row text-center py-2">
           <div class="col-md-4 col-sm-4">
-            <button type="button" class="btn btn-outline-danger" (click)="remove_friend(friend._id)" >Rimuovi</button>
+            <button type="button" class="btn btn-outline-danger" (click)="remove_friend(friend._id)">Rimuovi</button>
           </div>
           <div class="col-md-4 col-sm-4">
-            <button type="button" class="btn btn-outline-primary" [routerLink]="['/friend-chat', friend._id]">Messaggia</button>
+            <button type="button" class="btn btn-outline-primary"
+              [routerLink]="['/friend-chat', friend._id]">Messaggia</button>
           </div>
           <div class="col-md-4 col-sm-4">
-            <button type="button" class="btn btn-outline-primary">Sfida</button>  
+            <button type="button" class="btn btn-outline-primary" (click)="create_friend_game(friend._id)">Sfida</button>
           </div>
         </div>
       </div>

@@ -1,0 +1,11 @@
+.form-group {
+  background-color: #F0F0F0;
+  /* border: 1px solid gray; */
+  border-radius: 5px;
+  padding: 0rem 2rem 0rem 2rem;
+}
+
+div.card-body.friendMessage {
+  text-align: end;
+  background-color: #F0F0F0;
+}

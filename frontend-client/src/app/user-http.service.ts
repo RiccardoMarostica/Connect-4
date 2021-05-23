@@ -151,6 +151,19 @@ export class UserHttpService {
     })
   }
 
+  friend_request_game(userId: string): Observable<any> {
+    return this.http.get(this.url + "/create_match", {
+      headers: new HttpHeaders({
+        authorization: 'Bearer ' + this.get_token(),
+        'cache-control': 'no-cache',
+        'Content-Type': 'application/json',
+      }),
+      params: new HttpParams({
+        fromString: "user=" + userId,
+      })
+    })
+  }
+
   get_token(): any {
     return this.token;
   }

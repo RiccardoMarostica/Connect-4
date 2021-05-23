@@ -73,7 +73,7 @@ var userSchema = new mongoose.Schema({
    friendlist: {
       type: [{
          username: mongoose.SchemaTypes.String,
-         _id: mongoose.SchemaTypes.String
+         _id: mongoose.SchemaTypes.ObjectId
       }]
    },
    isOnline: {

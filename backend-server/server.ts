@@ -26,8 +26,10 @@
  * 3- Send messages: Inside the application an user can send a message to a friend, or during a game. 
  *    
  *    REQUEST                 ATTRIBUTES        METHOD            DESCRIPTION
- *    /messages               ?id=              GET               Return all the posted messages with a specific user, or return all the posted messages during a specific game, retrieving these from MongoDB using the id.
- *    /messages               ?id=              POST              Send a message to a specific user, or send a message inside the game chat, saving the current message inside MongoDB
+ *    /messages               ?user=            GET               Return all the posted messages with a specific user, retrieving these from MongoDB
+ *    /messages               ?match=           GET               Return all the posted messages during a specific game using WebSocket.
+ *    /messages               ?chat_id=         POST              Send a message to a specific user, saving the current message inside MongoDB
+ *    /messages               ?match=           POST              Send a message inside the game chat, using WebSocket.
  * 
  * 4- Statistics: Each player can see his statistics during the period. Also, moderators can see the statistics of any other user
  * 
@@ -113,6 +115,7 @@ import sio = require('socket.io');               // Socket.io websocket library
 
 import jsonwebtoken = require('jsonwebtoken')   // Module that implements JSON Web Token (JWT) generation
 import jwt = require('express-jwt')             // Middleware that parsing JWT for Express
+
 
 
 /**
@@ -234,7 +237,8 @@ app.post("/login", passport.authenticate('basic', { session: false }), (req, res
    var token = { // Create the token with useful informations
       username: req.user["username"],
       email: req.user["email"],
-      id: req.user["id"]
+      id: req.user["id"],
+      stats: req.user["stats"]
    }
 
    // Now sign the token
@@ -318,30 +322,28 @@ app.post("/register", (req, res, next) => {
 
 app.route("/messages").get(auth, async function (req, res, next) {
 
-   if (req.query.id) {
-      /**
-       * First of all check if the document exists inside mongoDB.
-       * If yes, return all the messages about the current id.
-       * Otherwise, create a message document with empty message
-       */
-      var result: any = await message.getModel().find({ _id: req.query.id }).sort({ timestamp: -1 });
+   // Handling the GET method when an user want to get the messages
+   // with another user
+   if (req.query.user) {
+
+      // Create an array with participants of the chat (in this case only 2)
+      var participants: Array<any> = [];
+      participants.push(req.query.user);
+      participants.push(req.user["id"]);
+
+      var result: any = await message.getModel().find({ participants: { $all: participants } });
 
       // Result is empty so no document is present inside mongo. Create a new one
       if (result == undefined || result.length == 0 || result == null) {
-         var id: any = req.query.id;
-         console.log("TEST: ".gray + "message id: " + id);
-         const doc = {
-            _id: id,
+         result = await message.getModel().create({
+            participants: participants,
             messages: []
-         }
-         result = await message.getModel().create(doc);
+         });
 
          console.log("SUCCESS: ".green + "Create a new chat room!");
+         console.log("TEST: ".gray + JSON.stringify(result));
 
-         return res.status(200).json({
-            error: false,
-            message: "Create a new chat room!"
-         })
+         return res.status(200).json(result);
       } else { // There is a chat inside mongo so retrieve it
          return res.status(200).json(result[0]);
       }
@@ -356,53 +358,59 @@ app.route("/messages").get(auth, async function (req, res, next) {
       })
    }
 
-}).post(auth, (req, res, next) => {
+}).post(auth, async (req, res, next) => {
 
-
-   /**
-    * This condition check the query parameters when user request to post a message 
-    * If an user make a request with different parameters, server will send a response with
-    * an error.
-    */
-   if (req.query.id) {
-      // Take from the request body the message. Then complete it with the last infos
-      var receiveMessage = req.body;
-      receiveMessage.timestamp = new Date();
-      receiveMessage.author = req.user["id"];
-   } else {
-      // An error occurred cause user make a request with parameters inside query that are not valid. Call next middleware
-      console.log("ERROR: ".red + "Request query parameter is not valid");
-
-      return next({
-         statusCode: 404,
-         error: true,
-         message: "Request query parameter is not valid"
-      })
-   }
+   var receiveMessage = req.body;
+   receiveMessage.timestamp = new Date();
+   receiveMessage.author = req.user["id"];
 
    // Check if receiveMessage is a message or not
    if (message.isMessage(receiveMessage)) {
 
-      message.getModel().updateOne({ _id: req.query.id }, { $push: { messages: receiveMessage } }).then(() => {
+      // POST method when two users are exchanging messages
+      if (req.query.chat_id) {
 
-         console.log("SUCCESS: ".green + "Added a new message inside the chat id: " + req.query.id);
+         var id: any = req.query.chat_id
 
-         // TODO: emit to users that a message has been posted
-         return res.status(200).json({
-            message: "Message added inside the chat!"
-         })
-      }).catch((reason) => {
+         // Update chat document on mongoDB saving the last message
+         message.getModel().updateOne({ _id: id }, {
+            $push: {
+               messages: {
+                  $each: [receiveMessage],
+                  $sort: -1
+               }
+            }
+         }).then(() => {
 
-         // An error occurred during the call "create" on MongoDB. Call next middleware
-         console.log("ERROR: ".red + reason);
+            console.log("SUCCESS: ".green + "Added a new message inside the chat id: " + id);
+
+            // Emit to the user participanting the chat with specific id
+            ios.emit("chat_" + id);
+
+            return res.status(200).json({
+               message: "Message added inside the chat!"
+            })
+         }).catch((reason) => {
+
+            // An error occurred during the call "create" on MongoDB. Call next middleware
+            console.log("ERROR: ".red + reason);
+
+            return next({
+               statusCode: 404,
+               error: true,
+               message: "DB error: " + reason
+            })
+         });
+      } else {
+         // An error occurred cause user make a request with parameters inside query that are not valid. Call next middleware
+         console.log("ERROR: ".red + "Request query parameter is not valid");
 
          return next({
             statusCode: 404,
             error: true,
-            message: "DB error: " + reason
+            message: "Request query parameter is not valid"
          })
-      });
-
+      }
    } else {
       // An error occurred, cause request body is not correct to create a new message. Call next middleware
       return next({
@@ -411,7 +419,6 @@ app.route("/messages").get(auth, async function (req, res, next) {
          message: "Data is not a valid Message"
       })
    }
-
 });
 
 /**
@@ -583,6 +590,34 @@ app.route("/friends").get(auth, (req, res, next) => {
    })
 });
 
+/**
+ * -------------------------------------------------------
+ *                         GAME
+ * 
+ * Endpoints used to handle the creation and the develop of a match
+ * 
+ * -------------------------------------------------------
+ */
+
+app.route("/create_match").get(auth, (req, res, next) => {
+
+   // In this case, an user ask to his friend to play a game.
+   if (req.query.user) {
+
+      console.log("TEST: ".gray + "Ask to create a match to " + req.query.user);
+
+      // Create a socket used to send a request to other player
+      ios.emit("game_request_" + req.query.user, {
+         _id: req.user["id"],
+         username: req.user["username"],
+         stats: req.user["stats"]
+      })
+
+   }
+
+   return res.status(200).json({});
+});
+
 
 /**
  * -------------------------------------------------------
@@ -705,8 +740,6 @@ mongoose.connect('mongodb://localhost:27017/connectfour').then(() => {
    ios.on('connection', (socket) => {
       console.log("SUCCESS: ".green + "Socket.io client connected, socket id:" + socket.id);
    });
-
-
 
 }).catch((error) => {
 
