@@ -19,6 +19,8 @@
   <div class="alert text-center" *ngIf="friendGameRequest">
     <h3>Richiesta creazione nuova partita contro:</h3>
     <p>Username: {{friendGameRequest.username}}</p>
+    <p>ID: {{friendGameRequest._id}}</p>
+    <p>stats: games: {{friendGameRequest.stats.games}}, wins: {{friendGameRequest.stats.win}}, lose: {{friendGameRequest.stats.lose}}</p>
     <div class="row justify-content-center">
       <div class="col-5">
         <button type="button" class="btn btn-success btn-lg">Accetta</button>
@@ -34,7 +36,8 @@
 <div class="row">
   <div class="col-9">
     <p>Qui vanno le info etc..</p>
-    <button type="button" class="btn btn-outline-primary">Ricerca partita</button>
+    <button type="button" class="btn btn-outline-primary" (click)="join_waiting_status()">Ricerca partita</button>
+    <button type="button" class="btn btn-outline-primary" (click)="exit_waiting_status()">Esci dalla ricerca</button>
   </div>
   <div class="col-3">
     <p>Qui va la friendlist</p>

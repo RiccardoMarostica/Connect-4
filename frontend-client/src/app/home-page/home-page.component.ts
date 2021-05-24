@@ -48,6 +48,10 @@ export class HomePageComponent implements OnInit {
       this.friendGameRequest = data;
       console.log("TEST: " + JSON.stringify(this.friendGameRequest));
     });
+
+    this.socket.listen("room message").subscribe((data) => {
+      console.log("TEST: " + JSON.stringify(data));
+    });
   }
 
   /**
@@ -102,4 +106,11 @@ export class HomePageComponent implements OnInit {
     })
   }
 
+  join_waiting_status(): void {
+    this.socket.emit("waiting status", this.user.get_user_id());
+  }
+
+  exit_waiting_status(): void {
+    this.socket.emit("exit waiting status", this.user.get_user_id());
+  }
 }

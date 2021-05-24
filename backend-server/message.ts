@@ -21,7 +21,7 @@ import mongoose = require('mongoose'); // Module designed to use MongoDB in an a
  * This interface is exported so it can be used inside other file
  */
 export interface Chat extends mongoose.Document {
-   _id: mongoose.Schema.Types.ObjectId,
+   readonly _id: mongoose.Schema.Types.ObjectId,
    participants: {
       type: [mongoose.Schema.Types.ObjectId]
    }

@@ -32,7 +32,8 @@ export interface User extends mongoose.Document {
    stats: {
       games: number,
       win: number,
-      lose: number
+      lose: number,
+      draw: number
    },
    friendslist: []      // list of friends. This array contains the friends' ids.
    isOnline: boolean    // flag useful to friends to see if you're online or not

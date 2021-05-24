@@ -11,7 +11,8 @@
  * 
  *    REQUEST           ATTRIBUTES        METHOD            DESCRIPTION
  *    /login            ---               POST              Login an exsisting user, using a JSON Web Token (JWT) and returning it to client-side
- *    /register         ---               POST              Register a new user, creating the corresponding JWT and returning it to clinet-side
+ *    /register         ---               POST              Register a new user, creating the corresponding JWT and returning it to client-side
+ *    /register         ---               POST              Used when a moderator made his first login, he will be redirected to a register page used to update his fields inside the array. After that he made a request to update his values. The infos are shared inside the body of the request
  *    /delete           ?user=            DELETE            Remove user access
  *    
  * 
@@ -20,7 +21,7 @@
  *    REQUEST                 ATTRIBUTES        METHOD            DESCRIPTION
  *    /friends                ---               GET               Retrieve user's friendlist
  *    /friends                ?user=            POST              Send a request to the friend passed from parameters
- *                            ?status=          POST              Accept or deny friend request
+ *                            ---               POST              Accept or deny friend request, using the infos shared inside the body of the request
  *    /friends                ?user=            DELETE            Remove a friend form user's friendlist
  * 
  * 3- Send messages: Inside the application an user can send a message to a friend, or during a game. 
@@ -28,7 +29,7 @@
  *    REQUEST                 ATTRIBUTES        METHOD            DESCRIPTION
  *    /messages               ?user=            GET               Return all the posted messages with a specific user, retrieving these from MongoDB
  *    /messages               ?match=           GET               Return all the posted messages during a specific game using WebSocket.
- *    /messages               ?chat_id=         POST              Send a message to a specific user, saving the current message inside MongoDB
+ *    /messages               ?chat_id=         POST              Send a message to a specific user, using the content inside the body of the request, saving the current message inside MongoDB
  *    /messages               ?match=           POST              Send a message inside the game chat, using WebSocket.
  * 
  * 4- Statistics: Each player can see his statistics during the period. Also, moderators can see the statistics of any other user
@@ -36,14 +37,13 @@
  *    REQUEST                 ATTRIBUTES        METHOD            DESCRIPTION
  *    /stats                  ---               GET               Get the statistics. If this call is made by a moderator show statistics of each user, otherwise only for current user
  *    /stats                  ---               POST              Update user stats   
- *    /statistics/:user_id    ---               GET               Get the statistics of a specific user
+ *    /stats                  ?user=            GET               Get the statistics of a specific user, used by moderator
  * 
  * 5- Game mechanics: Handled all the request to start a game with a normal person or a friend. Also, there are the request to handle the moves made by each user
  * 
  *    REQUEST                 ATTRIBUTES        METHOD            DESCRIPTION
- *    /create_game            ---               GET               Create a game with a random player that is has the flag "waiting-state" setting to true (maybe search on MongoDB)
- *    /create_game/:user_id   ---               GET               Create a game with a friend inside user's friendlist
- *    /moves                  ?pos=             POST              Make a moves during the game passing where user put the disk, just need x value of the matrix cause then send a notification to opponent showing which moves user made.
+ *    /game/create            ?user=            GET               Create a game with a friend inside user's friendlist. Instead to create a game with waiting state we used socket.io
+ *    /game/move              ?pos=             POST              Make a moves during the game passing where user put the disk, just need x value of the matrix cause then send a notification to opponent showing which moves user made.
  * 
  * ----------------------------------------------------------
  * 
@@ -258,21 +258,35 @@ app.post("/login", passport.authenticate('basic', { session: false }), (req, res
  */
 app.post("/register", (req, res, next) => {
 
-   // TODO: Sistemare
    console.log("REQUEST: ".yellow + "Creating a new user");
 
+   var userData = req.body;
+
+   // Add the stats to user, donì't care if is normal or he is a moderator
+   userData.stats = {
+      games: 0,
+      win: 0,
+      lose: 0,
+      draw: 0
+   }
+
+   // User doesn't pass the role, so it is a normal user
+   if (userData.roles == undefined) {
+      userData.roles = {};
+   }
+
    // Create a user using Mongo using request body where the informations are stored
-   var newUser = user.newUser(req.body);
+   var newUser = user.newUser(userData);
 
    // Check if user put a password
-   if (!req.body.password) return next({
+   if (!userData.password) return next({
       statusCode: 404,
       error: true,
       message: "Password field missing"
    });
 
    // Save an user inside MongoDB
-   newUser.setPassword(req.body.password);
+   newUser.setPassword(userData.password);
    newUser.save().then((result) => {
 
       console.log("SUCCESS: ".yellow + "User has been registrated");
@@ -599,7 +613,7 @@ app.route("/friends").get(auth, (req, res, next) => {
  * -------------------------------------------------------
  */
 
-app.route("/create_match").get(auth, (req, res, next) => {
+app.route("/game/create").get(auth, (req, res, next) => {
 
    // In this case, an user ask to his friend to play a game.
    if (req.query.user) {
@@ -709,7 +723,8 @@ mongoose.connect('mongodb://localhost:27017/connectfour').then(() => {
          stats: {
             games: 0,
             win: 0,
-            lose: 0
+            lose: 0,
+            draw: 0
          },
          friendlist: [],
          isOnline: false
@@ -730,16 +745,80 @@ mongoose.connect('mongodb://localhost:27017/connectfour').then(() => {
    var server: http.Server = http.createServer(app); // Create a http server using app (so using express)
    server.listen(8080, () => console.log("SUCCESS: ".green + "HTTP Server started on port 8080"));
 
+   // Creat the webSocket
    ios = new sio.Server(server, {
       cors: {
          origin: "http://localhost:4200",
          methods: ["GET", "POST"]
       }
-   });  // Creat the webSocket
+   });
+
+   // Array used to memorize the ids of the players inside the waiting status
+   var userInWaiting: Array<any> = [];
 
    ios.on('connection', (socket) => {
       console.log("SUCCESS: ".green + "Socket.io client connected, socket id:" + socket.id);
+
+      // This on function is used when a player start a random match with random user
+      socket.on('waiting status', async (data: any) => {
+
+         // Retrieve from mongoDB the stats about a user and add it to the array with the socket
+         var stats: any = await user.getModel().find({ _id: data }, { stats: 1, _id: 0 });
+         stats = stats[0]["stats"];
+
+         userInWaiting.push({
+            user: {
+               id: data,
+               stats: stats
+            },
+            socket: socket
+         });
+
+         // We can create a match if there are at least two user inside the array
+         if (userInWaiting.length >= 2) {
+
+            var checkGameCondition = false;
+
+            // Get first user and remove it from the array
+            var randomValue: number = Math.floor(Math.random()) * userInWaiting.length;
+            var firstUser: any = userInWaiting.splice(randomValue, 1);
+            firstUser = firstUser[0];
+
+            // Get second user and remove it from the array
+            randomValue = Math.floor(Math.random()) * userInWaiting.length;
+            var secondUser: any = userInWaiting.splice(randomValue, 1);
+            secondUser = secondUser[0];
+
+            // Check if the stats are present for both user
+            if (firstUser.user.stats !== undefined && secondUser.user.stats !== undefined) {
+               // Now check if the difference between games and wins are the same
+               if ((Math.abs(firstUser.user.stats.get("games") - secondUser.user.stats.get("games")) < 10) && (Math.abs(firstUser.user.stats.get("win") - secondUser.user.stats.get("win")) < 10)) {
+                  checkGameCondition = true;
+               }
+            }
+
+            // User has same stats, they can play together
+            if (false) { // checkGameCondition == true) {
+               console.log("TEST: ".gray + "You can create a match!");
+               firstUser.socket.emit("room message", "Ciao!");
+               secondUser.socket.emit("room message", "Ciao!");
+            } else { // Put both user inside the array and wait to see if another user comes with similar stats so they can play together
+               userInWaiting.push(firstUser);
+               userInWaiting.push(secondUser);
+            }
+
+            console.log("TEST: ".gray + "Number of user in waiting state: " + userInWaiting.length);
+         }
+      });
+
+      // Remove the socket from the array
+      socket.on('exit waiting status', (data: string) => {
+         userInWaiting = userInWaiting.filter(elem => elem.user.id !== data);
+         console.log("TEST: ".gray + "users in waiting: " + userInWaiting.length);
+      })
    });
+
+
 
 }).catch((error) => {
 

@@ -152,7 +152,7 @@ export class UserHttpService {
   }
 
   friend_request_game(userId: string): Observable<any> {
-    return this.http.get(this.url + "/create_match", {
+    return this.http.get(this.url + "/game/create", {
       headers: new HttpHeaders({
         authorization: 'Bearer ' + this.get_token(),
         'cache-control': 'no-cache',
