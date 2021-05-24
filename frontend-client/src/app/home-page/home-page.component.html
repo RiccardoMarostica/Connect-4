@@ -20,7 +20,8 @@
     <h3>Richiesta creazione nuova partita contro:</h3>
     <p>Username: {{friendGameRequest.username}}</p>
     <p>ID: {{friendGameRequest._id}}</p>
-    <p>stats: games: {{friendGameRequest.stats.games}}, wins: {{friendGameRequest.stats.win}}, lose: {{friendGameRequest.stats.lose}}</p>
+    <p>stats: games: {{friendGameRequest.stats.games}}, wins: {{friendGameRequest.stats.win}}, lose:
+      {{friendGameRequest.stats.lose}}</p>
     <div class="row justify-content-center">
       <div class="col-5">
         <button type="button" class="btn btn-success btn-lg">Accetta</button>
@@ -36,8 +37,10 @@
 <div class="row">
   <div class="col-9">
     <p>Qui vanno le info etc..</p>
-    <button type="button" class="btn btn-outline-primary" (click)="join_waiting_status()">Ricerca partita</button>
-    <button type="button" class="btn btn-outline-primary" (click)="exit_waiting_status()">Esci dalla ricerca</button>
+    <!-- <button type="button" class="btn btn-outline-primary" (click)="join_waiting_status()">Ricerca partita</button> -->
+    <button type="button" class="btn btn-outline-primary" (click)="open('WAITING ROOM', waitingRoom)">Ricerca
+      partita</button>
+    <!-- <button type="button" class="btn btn-outline-primary" (click)="exit_waiting_status()">Esci dalla ricerca</button> -->
   </div>
   <div class="col-3">
     <p>Qui va la friendlist</p>
@@ -61,15 +64,11 @@
               [routerLink]="['/friend-chat', friend._id]">Messaggia</button>
           </div>
           <div class="col-md-4 col-sm-4">
-            <button type="button" class="btn btn-outline-primary" (click)="create_friend_game(friend._id)">Sfida</button>
+            <button type="button" class="btn btn-outline-primary"
+              (click)="create_friend_game(friend._id)">Sfida</button>
           </div>
         </div>
       </div>
-
-      <!-- <div class="card-body">
-            <h5 class="card-title"><i class="far fa-envelope"></i>&nbsp;{{friend.username}}</h5>
-            <h6 class="card-subtitle mb-2 text-muted">{{friend.id}}</h6>
-         </div> -->
     </div>
     <form class="row g-3">
       <div class="col-auto">
@@ -81,3 +80,17 @@
     </form>
   </div>
 </div>
+
+
+<ng-template #waitingRoom let-modal>
+  <div class="modal-header">
+    <h4 class="modal-title" id="modal-basic-title">Searching a new match</h4>
+  </div>
+  <div class="modal-body">
+    <p>We are searching an opponent with stats similar to yours. Wait until we find a good opponent!</p>
+    <p>If you want to quit the waiting room just click outside this window or press the "Stop research" button.</p>
+  </div>
+  <div class="modal-footer d-grid gap-2">
+    <button type="button" class="btn btn-outline-danger" (click)="modal.dismiss('Stop research')">Stop research</button>
+  </div>
+</ng-template>

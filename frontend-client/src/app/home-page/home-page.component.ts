@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
 import { SocketioService } from '../socketio.service';
 import { UserHttpService } from '../user-http.service';
+import { NgbModal } from '@ng-bootstrap/ng-bootstrap';
 
 @Component({
   selector: 'app-home-page',
@@ -10,11 +11,12 @@ import { UserHttpService } from '../user-http.service';
 })
 export class HomePageComponent implements OnInit {
 
-  public friendList: any = [];
-  public friendRequest: any = undefined;
-  public friendGameRequest: any = undefined;
+  friendList: any = [];
+  friendRequest: any = undefined;
+  friendGameRequest: any = undefined;
+  closeResult: string = '';
 
-  constructor(private user: UserHttpService, private router: Router, private socket: SocketioService) { }
+  constructor(private user: UserHttpService, private router: Router, private socket: SocketioService, private modalService: NgbModal) { }
 
   ngOnInit() {
 
@@ -46,11 +48,12 @@ export class HomePageComponent implements OnInit {
     this.socket.listen("game_request_" + this.user.get_user_id()).subscribe((data) => {
       console.log("Request to create a new game with: " + data.userId);
       this.friendGameRequest = data;
-      console.log("TEST: " + JSON.stringify(this.friendGameRequest));
     });
 
-    this.socket.listen("room message").subscribe((data) => {
-      console.log("TEST: " + JSON.stringify(data));
+    this.socket.listen("match created").subscribe((data) => {
+      console.log(data);
+      this.modalService.dismissAll();
+      this.router.navigate(['/match', data]); // Navigate to the page refered to the match
     });
   }
 
@@ -60,8 +63,12 @@ export class HomePageComponent implements OnInit {
   get_friends(): void {
 
     this.user.get_friends().subscribe((data) => {
+      console.log("Get the friend list!");
       this.friendList = data.friends;
-      console.log("Friend list: " + JSON.stringify(this.friendList));
+    }, (err) => {
+      console.log("Unable to retrieve the friend list!");
+      console.log("ERROR: " + err);
+      this.friendList = [];
     });
   }
 
@@ -106,11 +113,43 @@ export class HomePageComponent implements OnInit {
     })
   }
 
-  join_waiting_status(): void {
-    this.socket.emit("waiting status", this.user.get_user_id());
+  /**
+   * Function used to trigger the socket on server to handle the emit
+   * based if user wants to join or leave the waiting room status.
+   * @param status 
+   */
+  waiting_room(status: string) {
+    var emitString: string = '';
+    if (status == "WAITING") {
+      emitString = "waiting status";
+    }
+    if (status == "EXIT") {
+      emitString = "exit waiting status";
+    }
+
+    // Put a timeout of 2 seconds before make an emit
+    setTimeout(() => {
+      this.socket.emit(emitString, this.user.get_user_id());
+    }, 2000);
   }
 
-  exit_waiting_status(): void {
-    this.socket.emit("exit waiting status", this.user.get_user_id());
+
+  /**
+   * Function used to open the popup on window used to put the player in the waiting status
+   * If he close the popup window he will be removed from the waiting status
+   * @param contentName 
+   * @param content 
+   */
+  open(contentName: string, content: any) {
+
+    switch (contentName) {
+      case "WAITING ROOM":
+        this.waiting_room("WAITING");
+        this.modalService.open(content, { ariaLabelledBy: 'modal-basic-title' }).result.then(() => {
+        }, () => {
+          this.waiting_room("EXIT");
+        });
+        break;
+    }
   }
 }

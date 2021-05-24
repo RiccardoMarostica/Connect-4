@@ -42,6 +42,8 @@
  * 5- Game mechanics: Handled all the request to start a game with a normal person or a friend. Also, there are the request to handle the moves made by each user
  * 
  *    REQUEST                 ATTRIBUTES        METHOD            DESCRIPTION
+ *    /game                   ---               GET               Get all the matches in progress and not concluded
+ *    /game                   ?game?            GET               Get the informations about a specific game using his id
  *    /game/create            ?user=            GET               Create a game with a friend inside user's friendlist. Instead to create a game with waiting state we used socket.io
  *    /game/move              ?pos=             POST              Make a moves during the game passing where user put the disk, just need x value of the matrix cause then send a notification to opponent showing which moves user made.
  * 
@@ -98,11 +100,10 @@ import colors = require('colors');              // Module used to import colors,
 colors.enabled = true;
 import mongoose = require('mongoose');          // Module designed to use MongoDB in an asynchronous enviroment
 
-import { User } from './user';                  // Imports the file user that contains all the methods an interfaces to handle the user part
-import * as user from './user';
 
-import { Message } from './message';            // Imports the file that contains all the methods an interfaces to handle the message and chat part   
-import * as message from './message';
+import * as user from './user';                 // Imports the file user that contains all the methods an interfaces to handle the user part
+import * as message from './message';           // Imports the file that contains all the methods an interfaces to handle the message and chat part   
+import * as match from './match';               // Imports the file that contains all the methods an interfaces to handle the game between players   
 
 import express = require('express');            // Module that provides a simple and robust middleware infrastructure for building web applications
 import bodyparser = require('body-parser')      // Module that parse incoming request bodies in a middleware before your handlers. 
@@ -612,6 +613,26 @@ app.route("/friends").get(auth, (req, res, next) => {
  * 
  * -------------------------------------------------------
  */
+app.route("/game").get(auth, (req, res, next) => {
+
+   // The match param inside query is used to memorize which match user wants to knwo more informations
+   // Useful for a participant and for a player who is only watching the game
+   if (req.query.match) {
+      var matchId: any = req.query.match; // Get the match id from the query
+
+      // Now try to get the data from the database
+      match.getModel().find({ _id: matchId }).then((data) => {
+
+         console.log("SUCCESS: ".green + "Retrieve match infos from the server and return it as response!");
+         return res.status(200).json(data[0]);
+      }, (err) => {
+
+         return next({ statusCode: 400, error: true, message: "DB errro: " + err });
+      })
+   }
+
+})
+
 
 app.route("/game/create").get(auth, (req, res, next) => {
 
@@ -762,17 +783,24 @@ mongoose.connect('mongodb://localhost:27017/connectfour').then(() => {
       // This on function is used when a player start a random match with random user
       socket.on('waiting status', async (data: any) => {
 
-         // Retrieve from mongoDB the stats about a user and add it to the array with the socket
-         var stats: any = await user.getModel().find({ _id: data }, { stats: 1, _id: 0 });
-         stats = stats[0]["stats"];
+         var checkIndex = userInWaiting.findIndex(elem => elem.user.id == data);
+         // Check if an user is already inside the array. If not just add the user, otherwise update the socket
+         if (checkIndex == -1) {
+            // Retrieve from mongoDB the stats about a user and add it to the array with the socket
+            var stats: any = await user.getModel().find({ _id: data }, { stats: 1, _id: 0 });
+            stats = stats[0]["stats"];
 
-         userInWaiting.push({
-            user: {
-               id: data,
-               stats: stats
-            },
-            socket: socket
-         });
+            userInWaiting.push({
+               user: {
+                  id: data,
+                  stats: stats
+               },
+               socket: socket
+            });
+         } else {
+            // Update the socket data
+            userInWaiting[checkIndex].socket = socket;
+         }
 
          // We can create a match if there are at least two user inside the array
          if (userInWaiting.length >= 2) {
@@ -798,23 +826,45 @@ mongoose.connect('mongodb://localhost:27017/connectfour').then(() => {
             }
 
             // User has same stats, they can play together
-            if (false) { // checkGameCondition == true) {
-               console.log("TEST: ".gray + "You can create a match!");
-               firstUser.socket.emit("room message", "Ciao!");
-               secondUser.socket.emit("room message", "Ciao!");
+            if (checkGameCondition == true) {
+               var colours = ["RED", "YELLOW"];
+               var randomValue = Math.floor(Math.random() * 2);
+
+               // Create the array of the two participants with the corrispective color to use during the match
+               var participants: Array<any> = [{
+                  _id: firstUser.user.id,
+                  colour: colours[randomValue]
+               }, {
+                  _id: secondUser.user.id,
+                  colour: colours[Math.abs(randomValue - 1)]
+               }]
+
+               // Choose who start first
+               var playerFirstTurn = participants[randomValue]["_id"];
+
+               // Create the match, adding the participants, setting that the match isn't over and who has the first turn
+               var matchInfo = await match.getModel().create({
+                  participants: participants,
+                  messages: [],
+                  isOver: false,
+                  turn: playerFirstTurn
+               })
+
+               console.log("SUCCESS: ".green + "Create a new match with id: " + matchInfo["_id"]);
+
+               // Now emit the informations given when the match is created to the players
+               firstUser.socket.emit("match created", matchInfo["_id"]);
+               secondUser.socket.emit("match created", matchInfo["_id"]);
             } else { // Put both user inside the array and wait to see if another user comes with similar stats so they can play together
                userInWaiting.push(firstUser);
                userInWaiting.push(secondUser);
             }
-
-            console.log("TEST: ".gray + "Number of user in waiting state: " + userInWaiting.length);
          }
       });
 
       // Remove the socket from the array
       socket.on('exit waiting status', (data: string) => {
          userInWaiting = userInWaiting.filter(elem => elem.user.id !== data);
-         console.log("TEST: ".gray + "users in waiting: " + userInWaiting.length);
       })
    });
 

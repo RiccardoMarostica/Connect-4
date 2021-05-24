@@ -9,7 +9,16 @@ exports.getModel = exports.getSchema = void 0;
 const mongoose = require("mongoose");
 var matchSchema = new mongoose.Schema({
     participants: {
-        type: [mongoose.SchemaTypes.ObjectId],
+        type: [{
+                _id: {
+                    type: mongoose.SchemaTypes.ObjectId,
+                    required: true,
+                },
+                colour: {
+                    type: mongoose.SchemaTypes.String,
+                    required: true,
+                }
+            }],
         required: true
     },
     messages: {
@@ -31,8 +40,28 @@ var matchSchema = new mongoose.Schema({
     isOver: {
         type: mongoose.SchemaTypes.Boolean,
         required: true
+    },
+    turn: {
+        type: mongoose.SchemaTypes.ObjectId,
+        required: true
     }
 });
+/**
+ * Method used to change the turn between the players
+ */
+matchSchema.methods.changeTurn = function () {
+    // Get the other player filtring the participants array (it has only 2 elems, so retrieve only one of them)
+    var otherPlayer = this.participants.filter(elem => elem != this.turn);
+    otherPlayer = otherPlayer[0];
+    // Change the turn string
+    this.turn = otherPlayer;
+};
+/**
+ * Method used to change the state of the match setting the flag "isOver" to true, setting that the match is over
+ */
+matchSchema.methods.closeGame = function () {
+    this.isOver = true;
+};
 /**
  * Function used to get the current schema about a message
  *

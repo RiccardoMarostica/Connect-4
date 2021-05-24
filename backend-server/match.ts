@@ -22,15 +22,27 @@ import * as message from './message';
  */
 export interface Match extends mongoose.Document {
    readonly _id: mongoose.Schema.Types.ObjectId,
-   participants: Array<string>,
+   participants: Array<any>,
    messages: Array<message.Message>,
-   isOver: boolean
+   isOver: boolean,
+   turn: string,
+   changeTurn: () => void,
+   closeMatch: () => void
 }
 
 
 var matchSchema = new mongoose.Schema({
    participants: {
-      type: [mongoose.SchemaTypes.ObjectId],
+      type: [{
+         _id: {
+            type: mongoose.SchemaTypes.ObjectId,
+            required: true,
+         },
+         colour: {
+            type: mongoose.SchemaTypes.String,
+            required: true,
+         }
+      }],
       required: true
    },
    messages: {
@@ -52,8 +64,32 @@ var matchSchema = new mongoose.Schema({
    isOver: {
       type: mongoose.SchemaTypes.Boolean,
       required: true
+   },
+   turn: {
+      type: mongoose.SchemaTypes.ObjectId,
+      required: true
    }
 });
+
+
+/**
+ * Method used to change the turn between the players
+ */
+matchSchema.methods.changeTurn = function (): void {
+   // Get the other player filtring the participants array (it has only 2 elems, so retrieve only one of them)
+   var otherPlayer = this.participants.filter(elem => elem != this.turn);
+   otherPlayer = otherPlayer[0];
+
+   // Change the turn string
+   this.turn = otherPlayer;
+}
+
+/**
+ * Method used to change the state of the match setting the flag "isOver" to true, setting that the match is over
+ */
+matchSchema.methods.closeGame = function (): void {
+   this.isOver = true;
+}
 
 
 /**
@@ -61,18 +97,18 @@ var matchSchema = new mongoose.Schema({
  * 
  * @returns userSchema
  */
- export function getSchema() { return matchSchema; }
+export function getSchema() { return matchSchema; }
 
- var matchModel;  // This is not exposed outside the model
- 
- /**
-  * Function used to create or retrieve message model from MongoDB
-  * 
-  * @returns messageModel
-  */
- export function getModel(): mongoose.Model<mongoose.Document> {
-    if (!matchModel) {
+var matchModel;  // This is not exposed outside the model
+
+/**
+ * Function used to create or retrieve message model from MongoDB
+ * 
+ * @returns messageModel
+ */
+export function getModel(): mongoose.Model<mongoose.Document> {
+   if (!matchModel) {
       matchModel = mongoose.model('Matches', getSchema())
-    }
-    return matchModel;
- }
+   }
+   return matchModel;
+}

@@ -1,6 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { ActivatedRoute, NavigationStart, Router } from '@angular/router';
-import { filter } from 'rxjs/operators';
+import { ActivatedRoute, Router } from '@angular/router';
 import { Chat } from '../customTemplates';
 import { MessageHttpService } from '../message-http.service';
 import { SocketioService } from '../socketio.service';
@@ -17,7 +16,7 @@ export class FriendChatComponent implements OnInit {
   public createdListenSocket: boolean = false;
 
 
-  constructor(private msgService: MessageHttpService, private activeRoute: ActivatedRoute, private socket: SocketioService) {
+  constructor(private msgService: MessageHttpService, private activeRoute: ActivatedRoute, private socket: SocketioService, private router: Router) {
     this.chat = {
       _id: "0",
       participants: [],
@@ -32,8 +31,9 @@ export class FriendChatComponent implements OnInit {
 
       // Now get the list of the messages using the friend id
       this.getChatMessages(this.friendId);
-
-
+    }, (err) => {
+      console.log("Unable to retrieve other user id from the URL!");
+      this.router.navigate(["/home-page"]);
     });
   }
 

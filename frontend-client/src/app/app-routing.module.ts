@@ -6,6 +6,7 @@ import { UserLoginComponent } from './user-login/user-login.component';
 import { UserRegistrationComponent } from './user-registration/user-registration.component';
 import { HomePageComponent } from './home-page/home-page.component';
 import { FriendChatComponent } from './friend-chat/friend-chat.component';
+import { MatchComponent } from './match/match.component';
 
 /**
  * Imports all the components used on client side.
@@ -19,7 +20,8 @@ const routes: Routes = [
   { path: 'login', component: UserLoginComponent },
   { path: 'registration', component: UserRegistrationComponent },
   { path: 'home-page', component: HomePageComponent },
-  { path: 'friend-chat/:friend_id', component: FriendChatComponent }
+  { path: 'friend-chat/:friend_id', component: FriendChatComponent },
+  { path: 'match/:match_id', component: MatchComponent }
 ];
 
 @NgModule({
