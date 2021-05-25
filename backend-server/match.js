@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getModel = exports.getSchema = void 0;
+exports.newMMatch = exports.getModel = exports.getSchema = void 0;
 /**
  * -------------------------------------------------------
  * MODULES USED TO DEVELOP THE BACKEND OF THE APPLICATION
@@ -44,8 +44,23 @@ var matchSchema = new mongoose.Schema({
     turn: {
         type: mongoose.SchemaTypes.ObjectId,
         required: true
+    },
+    grid: {
+        type: [[mongoose.SchemaTypes.String]],
+        required: true
     }
 });
+matchSchema.methods.createGrid = function () {
+    this.grid = [
+        ["EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY"],
+        ["EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY"],
+        ["EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY"],
+        ["EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY"],
+        ["EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY"],
+        ["EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY"],
+        ["EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY"]
+    ];
+};
 /**
  * Method used to change the turn between the players
  */
@@ -82,4 +97,9 @@ function getModel() {
     return matchModel;
 }
 exports.getModel = getModel;
+function newMMatch(data) {
+    var _model = getModel(); // Retrieve the user model on MongoDB
+    return new _model(data); // create a new user
+}
+exports.newMMatch = newMMatch;
 //# sourceMappingURL=match.js.map

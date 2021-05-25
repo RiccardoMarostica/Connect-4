@@ -26,6 +26,8 @@ export interface Match extends mongoose.Document {
    messages: Array<message.Message>,
    isOver: boolean,
    turn: string,
+   grid: [][],
+   createGrid: () => void,
    changeTurn: () => void,
    closeMatch: () => void
 }
@@ -68,9 +70,25 @@ var matchSchema = new mongoose.Schema({
    turn: {
       type: mongoose.SchemaTypes.ObjectId,
       required: true
+   },
+   grid: {
+      type: [[mongoose.SchemaTypes.String]],
+      required: true
    }
 });
 
+
+matchSchema.methods.createGrid = function(): void {
+   this.grid = [
+      ["EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY"],
+      ["EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY"],
+      ["EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY"],
+      ["EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY"],
+      ["EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY"],
+      ["EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY"],
+      ["EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY"]
+   ];
+}
 
 /**
  * Method used to change the turn between the players
@@ -108,7 +126,12 @@ var matchModel;  // This is not exposed outside the model
  */
 export function getModel(): mongoose.Model<mongoose.Document> {
    if (!matchModel) {
-      matchModel = mongoose.model('Matches', getSchema())
+      matchModel = mongoose.model<Match>('Matches', getSchema())
    }
    return matchModel;
+}
+
+export function newMMatch(data: any): Match {
+   var _model = getModel(); // Retrieve the user model on MongoDB
+   return new _model(data); // create a new user
 }

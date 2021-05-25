@@ -319,15 +319,18 @@ app.route("/messages").get(auth, function (req, res, next) {
                 return res.status(200).json(result[0]);
             }
         }
-        else {
-            // An error occurred cause user make a request with parameters inside query that are not valid. Call next middleware
-            console.log("ERROR: ".red + "Request query parameter is not valid");
-            return next({
-                statusCode: 404,
-                error: true,
-                message: "Request query parameter is not valid"
-            });
+        // Check if the GET request has a query parameters called match. If true elaborate the request
+        if (req.query.match) {
+            var result = yield match.getModel().find({ _id: req.query.match }, { _id: 0, messages: 1 });
+            return res.status(200).json(result);
         }
+        // An error occurred cause user make a request with parameters inside query that are not valid. Call next middleware
+        console.log("ERROR: ".red + "Request query parameter is not valid");
+        return next({
+            statusCode: 404,
+            error: true,
+            message: "Request query parameter is not valid"
+        });
     });
 }).post(auth, (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
     var receiveMessage = req.body;
@@ -545,7 +548,47 @@ app.route("/game").get(auth, (req, res, next) => {
             console.log("SUCCESS: ".green + "Retrieve match infos from the server and return it as response!");
             return res.status(200).json(data[0]);
         }, (err) => {
-            return next({ statusCode: 400, error: true, message: "DB errro: " + err });
+            return next({ statusCode: 400, error: true, message: "DB errror: " + err });
+        });
+    }
+}).post(auth, (req, res, next) => {
+    // When make a post call first of all check if user can make the moves checking the turn on db
+    var requestBody = req.body;
+    // Template of the body request
+    // requestBodyType = {
+    //    _id: String,
+    //    updatedGrid: [][],
+    //    turn: String
+    // }
+    // Check if inside the body there is the match id
+    if (requestBody["_id"]) {
+        match.getModel().updateOne({ _id: requestBody["_id"] }, {
+            $set: {
+                grid: requestBody["grid"],
+                turn: requestBody["turn"]
+            }
+        }).then(() => {
+            console.log("SUCCESS: ".green + "Update match values inside database!");
+            // TODO: Emit a message to all the players listening inside this match
+            return res.status(200).json({
+                error: false,
+                message: "Match update!"
+            });
+        }, (err) => {
+            console.log("ERROR: ".red + "Cannot update match informations!");
+            return next({
+                statusCode: 400,
+                error: true,
+                message: "DB error: " + err
+            });
+        });
+    }
+    else {
+        // Return an error
+        return next({
+            statusCode: 500,
+            error: true,
+            message: "Unable to find a suitable handler!"
         });
     }
 });
@@ -709,13 +752,24 @@ mongoose.connect('mongodb://localhost:27017/connectfour').then(() => {
                         }];
                     // Choose who start first
                     var playerFirstTurn = participants[randomValue]["_id"];
+                    var grid = [
+                        ["EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY"],
+                        ["EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY"],
+                        ["EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY"],
+                        ["EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY"],
+                        ["EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY"],
+                        ["EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY"],
+                        ["EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY"]
+                    ];
                     // Create the match, adding the participants, setting that the match isn't over and who has the first turn
                     var matchInfo = yield match.getModel().create({
                         participants: participants,
                         messages: [],
                         isOver: false,
-                        turn: playerFirstTurn
+                        turn: playerFirstTurn,
+                        grid: grid
                     });
+                    // TODO Continuare da qui per creazione partita
                     console.log("SUCCESS: ".green + "Create a new match with id: " + matchInfo["_id"]);
                     // Now emit the informations given when the match is created to the players
                     firstUser.socket.emit("match created", matchInfo["_id"]);
