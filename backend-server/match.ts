@@ -78,7 +78,7 @@ var matchSchema = new mongoose.Schema({
 });
 
 
-matchSchema.methods.createGrid = function(): void {
+matchSchema.methods.createGrid = function (): void {
    this.grid = [
       ["EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY"],
       ["EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY"],
@@ -131,7 +131,84 @@ export function getModel(): mongoose.Model<mongoose.Document> {
    return matchModel;
 }
 
-export function newMMatch(data: any): Match {
-   var _model = getModel(); // Retrieve the user model on MongoDB
-   return new _model(data); // create a new user
+/**
+ * Function used to control the grid and 
+ * @param grid 
+ * @returns 
+ */
+export function getWinner(matrix: any): string | undefined {
+
+   // rows
+   for (var i = 0; i < matrix.length; i++) {
+      var rowMatch = matrix[i];
+      if (rowMatch.filter((elem) => elem == "RED").length == 4) {
+         return "RED";
+      }
+      if (rowMatch.filter((elem) => elem == "YELLOW").length == 4) {
+         return "YELLOW";
+      }
+   }
+
+   // columns
+   var columns = getColumns(matrix);
+   for (var j = 0; j < columns.length; j++) {
+      var colMatch = columns[j];
+      if (colMatch.filter((elem) => elem == "RED").length == 4) {
+         return "RED";
+      }
+      if (colMatch.filter((elem) => elem == "YELLOW").length == 4) {
+         return "YELLOW";
+      }
+   }
+
+   //diags
+   var diags = getDiags(matrix);
+   for (var l = 0; l < diags.length; l++) {
+      var diagMatch = diags[l];
+      if (diagMatch.filter((elem) => elem == "RED").length == 4) {
+         return "RED";
+      }
+      if (diagMatch.filter((elem) => elem == "YELLOW").length == 4) {
+         return "YELLOW";
+      }
+   }
+   return undefined;
 }
+
+
+function getColumns(matrix) {
+   var columns = [];
+   for (var j = 0; j < matrix[0].length; j++) {
+      var column = [];
+      for (var k = 0; k < matrix.length; k++) {
+         column.push(matrix[k][j]);
+      }
+      columns.push(column);
+   }
+   return columns;
+}
+
+function getDiags(arr) {
+   var diags = [];
+   for (var i = -5; i < 7; i++) {
+      var group = [];
+      for (var j = 0; j < 6; j++) {
+         if ((i + j) >= 0 && (i + j) < 7) {
+            group.push(arr[j][i + j]);
+         }
+      }
+      diags.push(group);
+   }
+   for (i = 0; i < 12; i++) {
+      var group = [];
+      for (var j = 5; j >= 0; j--) {
+         if ((i - j) >= 0 && (i - j) < 7) {
+            group.push(arr[j][i - j]);
+         }
+      }
+      diags.push(group);
+   }
+   return diags.filter(function (a) {
+      return a.length > 3;
+   });
+};

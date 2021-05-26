@@ -1,7 +1,7 @@
 <div class="container">
    <div class="row">
       <div class="col-9 col-lg-8">
-         <div class="column" id="column-0" data-x="0">
+         <div class="column" id="column-0" data-x="0" (click)="makeMoves(0)">
             <svg height="100" width="100" class="row-5">
                <circle cx="50" cy="50" r="40" stroke="#0B4E72" stroke-width="3" class="free" />
             </svg>
@@ -21,7 +21,7 @@
                <circle cx="50" cy="50" r="40" stroke="#0B4E72" stroke-width="3" class="free" />
             </svg>
          </div>
-         <div class="column" id="column-1" data-x="1">
+         <div class="column" id="column-1" data-x="1" (click)="makeMoves(1)">
             <svg height="100" width="100" class="row-5">
                <circle cx="50" cy="50" r="40" stroke="#0B4E72" stroke-width="3" class="free" />
             </svg>
@@ -41,7 +41,7 @@
                <circle cx="50" cy="50" r="40" stroke="#0B4E72" stroke-width="3" class="free" />
             </svg>
          </div>
-         <div class="column" id="column-2" data-x="2">
+         <div class="column" id="column-2" data-x="2" (click)="makeMoves(2)">
             <svg height="100" width="100" class="row-5">
                <circle cx="50" cy="50" r="40" stroke="#0B4E72" stroke-width="3" class="free" />
             </svg>
@@ -61,7 +61,7 @@
                <circle cx="50" cy="50" r="40" stroke="#0B4E72" stroke-width="3" class="free" />
             </svg>
          </div>
-         <div class="column" id="column-3" data-x="3">
+         <div class="column" id="column-3" data-x="3" (click)="makeMoves(3)">
             <svg height="100" width="100" class="row-5">
                <circle cx="50" cy="50" r="40" stroke="#0B4E72" stroke-width="3" class="free" />
             </svg>
@@ -81,7 +81,7 @@
                <circle cx="50" cy="50" r="40" stroke="#0B4E72" stroke-width="3" class="free" />
             </svg>
          </div>
-         <div class="column" id="column-4" data-x="4">
+         <div class="column" id="column-4" data-x="4" (click)="makeMoves(4)">
             <svg height="100" width="100" class="row-5">
                <circle cx="50" cy="50" r="40" stroke="#0B4E72" stroke-width="3" class="free" />
             </svg>
@@ -101,9 +101,9 @@
                <circle cx="50" cy="50" r="40" stroke="#0B4E72" stroke-width="3" class="free" />
             </svg>
          </div>
-         <div class="column" id="column-5" data-x="5">
+         <div class="column" id="column-5" data-x="5" (click)="makeMoves(5)">
             <svg height="100" width="100" class="row-5">
-               <circle cx="50" cy="50" r="40" stroke="#0B4E72" stroke-width="3" class="free" />
+               <circle cx="50" cy="50" r="40" stroke="#0B4E72" stroke-width="3" class="free" fill />
             </svg>
             <svg height="100" width="100" class="row-4">
                <circle cx="50" cy="50" r="40" stroke="#0B4E72" stroke-width="3" class="free" />
@@ -121,7 +121,7 @@
                <circle cx="50" cy="50" r="40" stroke="#0B4E72" stroke-width="3" class="free" />
             </svg>
          </div>
-         <div class="column" id="column-6" data-x="6">
+         <div class="column" id="column-6" data-x="6" (click)="makeMoves(6)">
             <svg height="100" width="100" class="row-5">
                <circle cx="50" cy="50" r="40" stroke="#0B4E72" stroke-width="3" class="free" />
             </svg>
@@ -146,4 +146,32 @@
          <p>I messaggi vanno qui</p>
       </div>
    </div>
+
+   <div class="container">
+      <div class="container">
+         <h3>Sta giocando il player: {{matchInfos.turn}}</h3>
+      </div>
+      <div *ngFor="let rows of matchInfos.grid | async" class="row" style="margin: 5px">
+         <div *ngFor="let cols of rows" class="column">
+            {{cols}}
+            <div *ngIf="cols=='EMPTY'">
+               <svg height="100" width="100" class="row-0">
+                  <circle cx="50" cy="50" r="40" stroke="#0B4E72" stroke-width="3" class="free" />
+               </svg>
+            </div>
+            <div *ngIf="cols=='RED'">
+               <svg height="100" width="100" class="row-0">
+                  <circle cx="50" cy="50" r="40" stroke="#0B4E72" stroke-width="3" fill="red" />
+               </svg>
+            </div>
+            <div *ngIf="cols=='YELLOW'">
+               <svg height="100" width="100" class="row-0">
+                  <circle cx="50" cy="50" r="40" stroke="#0B4E72" stroke-width="3" fill="yellow" />
+               </svg>
+            </div>
+         </div>
+         <br>
+      </div>
+   </div>
+
 </div>

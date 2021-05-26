@@ -30,8 +30,6 @@
  *    REQUEST                 ATTRIBUTES        METHOD            DESCRIPTION
  *    /messages               ?user=            GET               Return all the posted messages with a specific user, retrieving these from MongoDB
  *    /messages               ?match=           GET               Return all the posted messages during a specific game using WebSocket.
- *    /messages               ?chat_id=         POST              Send a message to a specific user, using the content inside the body of the request, saving the current message inside MongoDB
- *    /messages               ?match=           POST              Send a message inside the game chat, using WebSocket.
  *
  * 4- Statistics: Each player can see his statistics during the period. Also, moderators can see the statistics of any other user
  *
@@ -44,9 +42,10 @@
  *
  *    REQUEST                 ATTRIBUTES        METHOD            DESCRIPTION
  *    /game                   ---               GET               Get all the matches in progress and not concluded
- *    /game                   ?game?            GET               Get the informations about a specific game using his id
+ *    /game                   ?game=            GET               Get the informations about a specific game using his id, including the messages
  *    /game/create            ?user=            GET               Create a game with a friend inside user's friendlist. Instead to create a game with waiting state we used socket.io
- *    /game/move              ?pos=             POST              Make a moves during the game passing where user put the disk, just need x value of the matrix cause then send a notification to opponent showing which moves user made.
+ *    /game/move              ?game=            POST              Make a moves during the game passing where user put the disk, just need x value of the matrix cause then send a notification to opponent showing which moves user made.
+ *    /game/message           ?game=            POST              Post a message inside the match chat
  *
  * ----------------------------------------------------------
  *
@@ -319,11 +318,6 @@ app.route("/messages").get(auth, function (req, res, next) {
                 return res.status(200).json(result[0]);
             }
         }
-        // Check if the GET request has a query parameters called match. If true elaborate the request
-        if (req.query.match) {
-            var result = yield match.getModel().find({ _id: req.query.match }, { _id: 0, messages: 1 });
-            return res.status(200).json(result);
-        }
         // An error occurred cause user make a request with parameters inside query that are not valid. Call next middleware
         console.log("ERROR: ".red + "Request query parameter is not valid");
         return next({
@@ -554,34 +548,37 @@ app.route("/game").get(auth, (req, res, next) => {
 }).post(auth, (req, res, next) => {
     // When make a post call first of all check if user can make the moves checking the turn on db
     var requestBody = req.body;
-    // Template of the body request
-    // requestBodyType = {
-    //    _id: String,
-    //    updatedGrid: [][],
-    //    turn: String
-    // }
+    console.log("TEST: ".gray + "body request: " + JSON.stringify(requestBody));
     // Check if inside the body there is the match id
-    if (requestBody["_id"]) {
-        match.getModel().updateOne({ _id: requestBody["_id"] }, {
-            $set: {
-                grid: requestBody["grid"],
-                turn: requestBody["turn"]
-            }
-        }).then(() => {
-            console.log("SUCCESS: ".green + "Update match values inside database!");
-            // TODO: Emit a message to all the players listening inside this match
-            return res.status(200).json({
-                error: false,
-                message: "Match update!"
+    if (req.query.match) {
+        console.log("HERE");
+        if (match.getWinner(requestBody.grid) === undefined) {
+            console.log("HERE");
+            match.getModel().updateOne({ _id: req.query.match }, {
+                $set: {
+                    grid: requestBody["grid"],
+                    turn: requestBody["turn"]
+                }
+            }).then(() => {
+                console.log("SUCCESS: ".green + "Update match values inside database!");
+                // TODO: Emit a message to all the players listening inside this match
+                ios.emit("match_update_" + req.query.match);
+                return res.status(200).json({
+                    error: false,
+                    message: "Match update!"
+                });
+            }, (err) => {
+                console.log("ERROR: ".red + "Cannot update match informations!");
+                return next({
+                    statusCode: 400,
+                    error: true,
+                    message: "DB error: " + err
+                });
             });
-        }, (err) => {
-            console.log("ERROR: ".red + "Cannot update match informations!");
-            return next({
-                statusCode: 400,
-                error: true,
-                message: "DB error: " + err
-            });
-        });
+        }
+        else {
+            console.log("HERE ELSE");
+        }
     }
     else {
         // Return an error
