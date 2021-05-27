@@ -18,6 +18,8 @@ export class MatchComponent implements OnInit {
 
    watchingErrorMessage: boolean = false;
 
+   winnerPlayer: string | undefined = undefined;
+
    constructor(private activatedRoute: ActivatedRoute, private router: Router, private location: LocationStrategy, private match: MatchHttpService, private user: UserHttpService, private socket: SocketioService) {
       // preventing back button in browser
       history.pushState(null, '', window.location.href);
@@ -47,7 +49,25 @@ export class MatchComponent implements OnInit {
             }
 
             // Socket that update the matchInfo var every time there is a new move or a new message
-            this.socket.listen("match_update_" + this.matchInfos["_id"]).subscribe(() => { this.getMatchInfo(this.matchInfos["_id"]) });
+            this.socket.listen("match_update_" + this.matchInfos["_id"]).subscribe((data: string) => {
+               this.getMatchInfo(this.matchInfos["_id"]); // Get the infos from the server
+
+               console.log("DATA: " + data);
+
+               // Check if the socket pass a string containing the winner id;
+               if (data != undefined && data != "DRAW") {
+                  this.winnerPlayer = (data == this.user.get_user_id()) ? "WIN" : "LOSE"; // Set if user win or lose
+               } else {
+                  this.winnerPlayer = data; // Here just set undefined (game is not over) or a draw
+               }
+
+               console.log("MATCH STATUS: " + this.winnerPlayer);
+
+            }, (err) => { // Error case when listening an websocket event
+               console.log("Error while retrieving the informations from the server!");
+               console.log("ERROR: " + JSON.stringify(err));
+               this.router.navigate(["/home-page"]);
+            });
 
          }, (err) => { // Error case when user try to get the match data
             console.log("Error while retrieving the informations from the server!");
@@ -59,9 +79,6 @@ export class MatchComponent implements OnInit {
          console.log("Error while retrieving the match id from the URL!");
          this.router.navigate(["/home-page"]);
       });
-
-
-
    }
 
    /**
@@ -84,8 +101,8 @@ export class MatchComponent implements OnInit {
       // First of all check if user is a participant of the match or he is just watching the match
       if (this.isUserPlaying == true) {
 
-         // Now check the turn
-         if (this.matchInfos.turn == this.user.get_user_id()) {
+         // Now check the the player turn and check if there is no winner
+         if (this.matchInfos.turn == this.user.get_user_id() && this.winnerPlayer == undefined) {
 
             this.matchInfos.turn = ""; // Set it to "null" just to avoid multiple call
             var rowIndex: number = -1;
@@ -132,5 +149,3 @@ export class MatchComponent implements OnInit {
 
    }
 }
-
-// TODO: Aggiornare in real time la grid, aggiungere hhtml per invio e ricezione dei messaggi

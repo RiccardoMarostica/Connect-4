@@ -147,7 +147,6 @@ app.use((req, res, next) => {
 
    console.log("REQUEST URL: ".yellow + req.url);
    console.log("METHOD: ".yellow + req.method);
-   console.log("REQUET HEADERS: ".yellow + req.headers.authorization);
    next();
 
 })
@@ -629,21 +628,15 @@ app.route("/game").get(auth, (req, res, next) => {
          return next({ statusCode: 400, error: true, message: "DB errror: " + err });
       })
    }
-
-}).post(auth, (req, res, next) => {
+}).post(auth, async (req, res, next) => {
 
    // When make a post call first of all check if user can make the moves checking the turn on db
    var requestBody = req.body;
-
-   console.log("TEST: ".gray + "body request: " + JSON.stringify(requestBody));
-
    // Check if inside the body there is the match id
    if (req.query.match) {
-      console.log("HERE");
-      if (match.getWinner(requestBody.grid) === undefined) {
-
-         console.log("HERE");
-
+      var matchResult = match.getWinner(requestBody.grid);
+      if (matchResult === undefined) {
+         // Update the match document putting the new move makes from an user and changing the turn
          match.getModel().updateOne({ _id: req.query.match }, {
             $set: {
                grid: requestBody["grid"],
@@ -652,9 +645,10 @@ app.route("/game").get(auth, (req, res, next) => {
          }).then(() => {
             console.log("SUCCESS: ".green + "Update match values inside database!");
 
-            // TODO: Emit a message to all the players listening inside this match
+            // If everything ok, just emit to all the sockets in listening inside this match
             ios.emit("match_update_" + req.query.match);
 
+            // And return a status code 200
             return res.status(200).json({
                error: false,
                message: "Match update!"
@@ -668,7 +662,80 @@ app.route("/game").get(auth, (req, res, next) => {
             })
          });
       } else {
-         console.log("HERE ELSE");
+
+         var winnerId;
+         var participants = await match.getModel().find({ _id: req.query.match }, { participants: 1 });
+
+         // Check if the participants are avaible
+         if (participants.length === 0) {
+            return next({
+               statusCode: 400,
+               error: true,
+               message: "Unable to retrieve the participants"
+            })
+         }
+
+         // Check the winner if the match isn't over in a draw
+         if (matchResult !== "DRAW") {
+            var result = participants[0]["participants"];
+            winnerId = result.find(elem => elem["colour"] == matchResult)["_id"];
+         } else { // Otherwise, draw is the result
+            winnerId = "draw";
+         }
+
+         // Now update the status of the match
+         match.getModel().updateOne({ _id: req.query.match }, {
+            $set: {
+               isOver: true,
+               grid: requestBody["grid"]
+            }
+         }).then(() => {
+            console.log("SUCCESS: ".green + "The match is updated and set to over, there is a winner!");
+            ios.emit("match_update_" + req.query.match, winnerId); // Just emit e match update to the sockets connected and pass the winner id
+         }, (err) => { // Check and log it in case of error
+            console.log("ERROR: ".red + "An error has occurred while updating and closing the match! Error: " + err);
+            return next({
+               statusCoode: 400,
+               error: true,
+               message: "DB error: " + err
+            });
+         });
+
+         // Pass each user of the participants and update his stats based if he win, lose or draw.
+         var getParticipants: Array<any> = participants[0]["participants"];
+         getParticipants.forEach(elem => {
+
+            console.log(elem);
+
+            if (winnerId == "draw") { // Match is a draw, so just update the draw stats
+               user.getModel().updateOne({ _id: elem["_id"] }, { $inc: { "stats.draw": 1, "stats.games": 1 } }).then(() => {
+                  console.log("SUCCESS: ".green + "Update user stats");
+               }, (err) => {
+                  console.log("ERROR: ".red + "Database error: " + err);
+                  return next({ statusCode: 400, error: true, message: "DB error: " + err });
+               });
+            } else if (winnerId == elem["_id"]) { // Check if the user is the winner
+               user.getModel().updateOne({ _id: elem["_id"] }, { $inc: { "stats.win": 1, "stats.games": 1 } }).then(() => {
+                  console.log("SUCCESS: ".green + "Update user stats");
+               }, (err) => {
+                  console.log("ERROR: ".red + "Database error: " + err);
+                  return next({ statusCode: 400, error: true, message: "DB error: " + err });
+               });
+            } else { // Otherwise, it is the loser
+               user.getModel().updateOne({ _id: elem["_id"] }, { $inc: { "stats.lose": 1, "stats.games": 1 } }).then(() => {
+                  console.log("SUCCESS: ".green + "Update user stats");
+               }, (err) => {
+                  console.log("ERROR: ".red + "Database error: " + err);
+                  return next({ statusCode: 400, error: true, message: "DB error: " + err });
+               });
+            }
+         });
+
+         // Return a status code 200 cause everything goes well, updating all the stats and the match
+         return res.status(200).json({
+            error: false,
+            message: "Match updated, participants updated and match is over!"
+         })
       }
    } else {
       // Return an error
@@ -678,15 +745,13 @@ app.route("/game").get(auth, (req, res, next) => {
          message: "Unable to find a suitable handler!"
       })
    }
-
 })
 
 
-app.route("/game/create").get(auth, (req, res, next) => {
+app.route("/game/create").get(auth, async (req, res, next) => {
 
    // In this case, an user ask to his friend to play a game.
    if (req.query.user) {
-
       console.log("TEST: ".gray + "Ask to create a match to " + req.query.user);
 
       // Create a socket used to send a request to other player
@@ -695,7 +760,45 @@ app.route("/game/create").get(auth, (req, res, next) => {
          username: req.user["username"],
          stats: req.user["stats"]
       })
+   }
 
+   if (req.query.user && req.query.status) { // Check if also a status query parameter exist. This is used to set a match with a friend
+      if (req.query.status == "ACCEPT") {
+         var colours = ["RED", "YELLOW"];
+         var randomValue = Math.floor(Math.random() * 2);
+
+         // Create the array of the two participants with the corrispective color to use during the match
+         var participants: Array<any> = [{
+            _id: req.user["id"],
+            colour: colours[randomValue]
+         }, {
+            _id: req.query.user,
+            colour: colours[Math.abs(randomValue - 1)]
+         }]
+
+         // Choose who start first
+         var playerFirstTurn = participants[randomValue]["_id"];
+
+         var grid = [
+            ["EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY"],
+            ["EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY"],
+            ["EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY"],
+            ["EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY"],
+            ["EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY"],
+            ["EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY"]
+         ];
+
+         // Create the match, adding the participants, setting that the match isn't over and who has the first turn
+         var matchInfo = await match.getModel().create({
+            participants: participants,
+            messages: [],
+            isOver: false,
+            turn: playerFirstTurn,
+            grid: grid
+         });
+      }
+
+      // TODO Fare emit ai client e inizializzare il match
    }
 
    return res.status(200).json({});
@@ -896,7 +999,6 @@ mongoose.connect('mongodb://localhost:27017/connectfour').then(() => {
                   ["EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY"],
                   ["EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY"],
                   ["EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY"],
-                  ["EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY"],
                   ["EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY"]
                ];
 
@@ -908,7 +1010,6 @@ mongoose.connect('mongodb://localhost:27017/connectfour').then(() => {
                   turn: playerFirstTurn,
                   grid: grid
                });
-               // TODO Continuare da qui per creazione partita
 
                console.log("SUCCESS: ".green + "Create a new match with id: " + matchInfo["_id"]);
 

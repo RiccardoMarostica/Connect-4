@@ -50,33 +50,6 @@ var matchSchema = new mongoose.Schema({
         required: true
     }
 });
-matchSchema.methods.createGrid = function () {
-    this.grid = [
-        ["EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY"],
-        ["EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY"],
-        ["EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY"],
-        ["EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY"],
-        ["EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY"],
-        ["EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY"],
-        ["EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY"]
-    ];
-};
-/**
- * Method used to change the turn between the players
- */
-matchSchema.methods.changeTurn = function () {
-    // Get the other player filtring the participants array (it has only 2 elems, so retrieve only one of them)
-    var otherPlayer = this.participants.filter(elem => elem != this.turn);
-    otherPlayer = otherPlayer[0];
-    // Change the turn string
-    this.turn = otherPlayer;
-};
-/**
- * Method used to change the state of the match setting the flag "isOver" to true, setting that the match is over
- */
-matchSchema.methods.closeGame = function () {
-    this.isOver = true;
-};
 /**
  * Function used to get the current schema about a message
  *
@@ -104,38 +77,90 @@ exports.getModel = getModel;
  */
 function getWinner(matrix) {
     // rows
-    for (var i = 0; i < matrix.length; i++) {
-        var rowMatch = matrix[i];
-        if (rowMatch.filter((elem) => elem == "RED").length == 4) {
-            return "RED";
-        }
-        if (rowMatch.filter((elem) => elem == "YELLOW").length == 4) {
-            return "YELLOW";
+    for (var r = 0; r < matrix.length; r++) {
+        var rowMatch = matrix[r];
+        var redCount = 0;
+        var yellowCount = 0;
+        // Pass each part of the array and check for consecutive disks
+        for (var i = 0; i < rowMatch.length; i++) {
+            var elem = rowMatch[i];
+            if (elem == "RED") {
+                redCount += 1;
+                yellowCount = 0;
+                if (redCount == 4)
+                    return "RED";
+            }
+            if (elem == "YELLOW") {
+                yellowCount += 1;
+                redCount = 0;
+                if (yellowCount == 4)
+                    return "YELLOW";
+            }
+            if (elem == "EMPTY") {
+                redCount = yellowCount = 0;
+            }
         }
     }
     // columns
     var columns = getColumns(matrix);
     for (var j = 0; j < columns.length; j++) {
         var colMatch = columns[j];
-        if (colMatch.filter((elem) => elem == "RED").length == 4) {
-            return "RED";
-        }
-        if (colMatch.filter((elem) => elem == "YELLOW").length == 4) {
-            return "YELLOW";
+        var redCount = 0;
+        var yellowCount = 0;
+        // Pass each part of the array and check for consecutive disks
+        for (var i = 0; i < colMatch.length; i++) {
+            var elem = colMatch[i];
+            if (elem == "RED") {
+                redCount += 1;
+                yellowCount = 0;
+                if (redCount == 4)
+                    return "RED";
+            }
+            if (elem == "YELLOW") {
+                yellowCount += 1;
+                redCount = 0;
+                if (yellowCount == 4)
+                    return "YELLOW";
+            }
+            if (elem == "EMPTY") {
+                redCount = yellowCount = 0;
+            }
         }
     }
     //diags
     var diags = getDiags(matrix);
     for (var l = 0; l < diags.length; l++) {
         var diagMatch = diags[l];
-        if (diagMatch.filter((elem) => elem == "RED").length == 4) {
-            return "RED";
-        }
-        if (diagMatch.filter((elem) => elem == "YELLOW").length == 4) {
-            return "YELLOW";
+        var redCount = 0;
+        var yellowCount = 0;
+        // Pass each part of the array and check for consecutive disks
+        for (var i = 0; i < diagMatch.length; i++) {
+            var elem = diagMatch[i];
+            if (elem == "RED") {
+                redCount += 1;
+                yellowCount = 0;
+                if (redCount == 4)
+                    return "RED";
+            }
+            if (elem == "YELLOW") {
+                yellowCount += 1;
+                redCount = 0;
+                if (yellowCount == 4)
+                    return "YELLOW";
+            }
+            if (elem == "EMPTY") {
+                redCount = yellowCount = 0;
+            }
         }
     }
-    return undefined;
+    // Control if the match is a draw
+    for (var r = 0; r < matrix.length; r++) {
+        var rowMatch = matrix[r];
+        var result = rowMatch.find(elem => elem == "EMPTY");
+        if (result != undefined)
+            return undefined;
+    }
+    return "DRAW";
 }
 exports.getWinner = getWinner;
 function getColumns(matrix) {
