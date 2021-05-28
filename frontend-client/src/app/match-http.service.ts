@@ -50,4 +50,18 @@ export class MatchHttpService {
          })
       });
    }
+
+   /**
+    * Function that make an HTTP request to the server, used to get all the matches that aren't over
+    * @returns 
+    */
+   get_matches(): Observable<any> {
+      return this.http.get(this.user.url + "/game", {
+         headers: new HttpHeaders({
+            authorization: 'Bearer ' + this.user.get_token(),
+            'cache-control': 'no-cache',
+            'Content-Type': 'application/json',
+         })
+      });
+   }
 }

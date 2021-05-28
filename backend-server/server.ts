@@ -236,8 +236,7 @@ app.post("/login", passport.authenticate('basic', { session: false }), (req, res
    var token = { // Create the token with useful informations
       username: req.user["username"],
       email: req.user["email"],
-      id: req.user["id"],
-      stats: req.user["stats"]
+      id: req.user["id"]
    }
 
    // Now sign the token
@@ -655,6 +654,14 @@ app.route("/game").get(auth, (req, res, next) => {
 
          return next({ statusCode: 400, error: true, message: "DB errror: " + err });
       })
+   } else { // There is no query parameters, so in this case just provide all the matches that arent' over
+      match.getModel().find({ isOver: false }, { _id: 1, timestamp: 1 }).sort({ timestamp: -1 }).then((data) => {
+         console.log("SUCCESS: ".green + "Retrieving list of the matches that aren't over");
+         return res.status(200).json(data);
+      }, (err) => {
+         console.log("ERROR: ".red + "An error occurred while retrieving the list of the matches! Error: " + err);
+         return next({ statusCode: 400, error: true, message: "DB error: " + err });
+      });
    }
 }).post(auth, async (req, res, next) => {
 
@@ -827,7 +834,8 @@ app.route("/game/create").get(auth, async (req, res, next) => {
             messages: [],
             isOver: false,
             turn: playerFirstTurn,
-            grid: grid
+            grid: grid,
+            timestamp: new Date()
          });
 
          console.log("TEST: " + "match infos: " + matchInfo);
@@ -853,13 +861,6 @@ app.route("/game/create").get(auth, async (req, res, next) => {
 
    })
 });
-
-app.route("/game/messages").get(auth, (req, res, next) => {
-
-   // Get from the body the content of the message
-
-});
-
 /**
  * -------------------------------------------------------
  *                         STATS
@@ -873,16 +874,16 @@ app.route("/game/messages").get(auth, (req, res, next) => {
 
 app.route("/stats").get(auth, (req, res, next) => {
 
-   var user = req.user;
+   var userId = req.user["id"];
+   console.log("TEST: " + userId);
 
-   console.log(user);
-
-   return res.status(200).json({
-      statusCode: 200,
-      error: false,
-      message: "stats retrieved"
+   user.getModel().find({ _id: userId }, { stats: 1, _id: 1, username: 1, email: 1 }).then((data) => {
+      console.log("TEST: " + JSON.stringify(data));
+      return res.status(200).json(data);
+   }, (err) => {
+      console.log("ERROR: ".red + "An error occurred while getting the stats of the player. Error: " + err);
+      return next({ statusCode: 400, error: true, message: "DB error: " + err });
    });
-
 })
 
 
@@ -1063,7 +1064,8 @@ mongoose.connect('mongodb://localhost:27017/connectfour').then(() => {
                   messages: [],
                   isOver: false,
                   turn: playerFirstTurn,
-                  grid: grid
+                  grid: grid,
+                  timestamp: new Date()
                });
 
                console.log("SUCCESS: ".green + "Create a new match with id: " + matchInfo["_id"]);

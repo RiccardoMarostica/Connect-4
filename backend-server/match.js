@@ -48,6 +48,10 @@ var matchSchema = new mongoose.Schema({
     grid: {
         type: [[mongoose.SchemaTypes.String]],
         required: true
+    },
+    timestamp: {
+        type: mongoose.SchemaTypes.Date,
+        required: true
     }
 });
 /**

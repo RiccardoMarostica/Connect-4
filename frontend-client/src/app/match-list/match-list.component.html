@@ -1,0 +1,15 @@
+<div class="mx-4">
+   <h2>Match list</h2>
+   <p>All'interno di questa pagina sono presenti tutte le partite in corso. è possibile accedere alla partita e poter
+      visalizzare la partita in real-time.</p>
+</div>
+
+<div *ngFor="let match of matchLists" class="card mx-4">
+   <div class="card-body">
+      <!-- <h5 class="card-title"><i class="far fa-envelope"></i>&nbsp;{{message.author}}</h5> -->
+      <h6 class="card-subtitle mb-2 text-muted">Inizio: {{match.timestamp | date}} / {{match.timestamp |
+         date:'shortTime'}}</h6>
+      <p class="card-text">Match id: <i>{{ match._id }}</i></p>
+      <button type="button" class="btn btn-outline-primary" (click)="joinMatch(match._id)">Partecipa alla partita</button>
+   </div>
+</div>

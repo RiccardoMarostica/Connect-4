@@ -1,19 +1,22 @@
 <div class="d-flex justify-content-center">
    <div class="col-5">
-      <div class="container" [ngSwitch]="winnerPlayer">
-         <h3 *ngSwitchCase="'WIN'">Il match è terminato. Hai vinto!</h3>
-         <h3 *ngSwitchCase="'LOSE'">Il match è terminato. Hai perso!</h3>
-         <h3 *ngSwitchCase="'DRAW'">Il match è terminato. Il match è finito in pareggio!</h3>
-         <h3 *ngSwitchDefault>
-            <div *ngIf="matchInfos.turn === user.get_user_id(); then userTurn else opponentsTurn"></div>
-         </h3>
 
-         <ng-template #userTurn>
-            <h3>Tocca a te! è il tuo turno</h3>
-         </ng-template>
-         <ng-template #opponentsTurn>
-            <h3>Il tuo avversario sta pensando! Aspetta il tuo turno</h3>
-         </ng-template>
+      <div *ngIf="isUserPlaying">
+         <div class="container" [ngSwitch]="winnerPlayer">
+            <h3 *ngSwitchCase="'WIN'">Il match è terminato. Hai vinto!</h3>
+            <h3 *ngSwitchCase="'LOSE'">Il match è terminato. Hai perso!</h3>
+            <h3 *ngSwitchCase="'DRAW'">Il match è terminato. Il match è finito in pareggio!</h3>
+            <h3 *ngSwitchDefault>
+               <div *ngIf="matchInfos.turn === user.get_user_id(); then userTurn else opponentsTurn"></div>
+            </h3>
+
+            <ng-template #userTurn>
+               <h3>Tocca a te! è il tuo turno</h3>
+            </ng-template>
+            <ng-template #opponentsTurn>
+               <h3>Il tuo avversario sta pensando! Aspetta il tuo turno</h3>
+            </ng-template>
+         </div>
       </div>
 
       <div *ngFor="let rows of matchInfos.grid" class="row" style="margin: 5px">

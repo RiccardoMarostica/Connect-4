@@ -12,6 +12,7 @@ import { HomePageComponent } from './home-page/home-page.component';
 import { FriendChatComponent } from './friend-chat/friend-chat.component';
 import { AppComponent } from './app.component';
 import { MatchComponent } from './match/match.component';
+import { MatchListComponent } from './match-list/match-list.component';
 
 
 // Service modules
@@ -28,7 +29,8 @@ import { MatchHttpService } from './match-http.service';
     UserRegistrationComponent,
     HomePageComponent,
     FriendChatComponent,
-    MatchComponent
+    MatchComponent,
+    MatchListComponent
   ],
   imports: [ // The set of NgModules whose exported declarables are available to templates in this module.
     BrowserModule,

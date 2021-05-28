@@ -26,7 +26,8 @@ export interface Match extends mongoose.Document {
    messages: Array<message.Message>,
    isOver: boolean,
    turn: string,
-   grid: [][]
+   grid: [][],
+   timestamp: string
 }
 
 
@@ -70,6 +71,10 @@ var matchSchema = new mongoose.Schema({
    },
    grid: {
       type: [[mongoose.SchemaTypes.String]],
+      required: true
+   },
+   timestamp: {
+      type: mongoose.SchemaTypes.Date,
       required: true
    }
 });
