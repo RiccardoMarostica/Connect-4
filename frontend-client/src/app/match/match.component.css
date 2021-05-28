@@ -29,3 +29,24 @@ circle.red {
 circle.yellow {
 	fill: #DAD400;
 }
+
+.form-group {
+	background-color: #F0F0F0;
+	/* border: 1px solid gray; */
+	border-radius: 5px;
+	padding: 0rem 2rem 0rem 2rem;
+ }
+
+.card {
+	border: 1px solid gray;
+	border-radius: 3px;
+}
+
+.card-body {
+	margin: 5px;
+}
+
+.btn {
+	padding: 10px;
+}
+

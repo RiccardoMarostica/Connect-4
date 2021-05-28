@@ -2,6 +2,7 @@ import { LocationStrategy } from '@angular/common';
 import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { MatchHttpService } from '../match-http.service';
+import { MessageHttpService } from '../message-http.service';
 import { SocketioService } from '../socketio.service';
 import { UserHttpService } from '../user-http.service';
 
@@ -16,11 +17,12 @@ export class MatchComponent implements OnInit {
    diskColour: string | null = null; // Variable used to set the disk colour if the user is playing
    matchInfos: any; // Get the infos from the server
 
-   watchingErrorMessage: boolean = false;
+   watchingErrorMessage: boolean = false; // Flag used to show a message if a watching player want to make a moves
+   messageError: boolean = false; // flag used to show a message if a message post request return with an error
 
-   winnerPlayer: string | undefined = undefined;
+   winnerPlayer: string | undefined = undefined; // Flag used to check who is the winner. The values of this variable are: WIN, LOSE, DRAW or undefined
 
-   constructor(private activatedRoute: ActivatedRoute, private router: Router, private location: LocationStrategy, private match: MatchHttpService, private user: UserHttpService, private socket: SocketioService) {
+   constructor(private activatedRoute: ActivatedRoute, private router: Router, private location: LocationStrategy, private match: MatchHttpService, public user: UserHttpService, private message: MessageHttpService, private socket: SocketioService) {
       // preventing back button in browser
       history.pushState(null, '', window.location.href);
       this.location.onPopState(() => {
@@ -39,6 +41,9 @@ export class MatchComponent implements OnInit {
          this.match.get_match_data(param).subscribe((data) => {
             this.matchInfos = data;
 
+            // Filter the array of messages
+            this.matchInfos.messages = this.controlMessageList(this.matchInfos.messages);
+
             // Check if current user is playing or not. If true check it
             var userId = this.user.get_user_id();
             var checkUserPlaying = this.matchInfos.participants.find((elem: any) => elem._id == userId); // Check if id of current user is inside participants
@@ -48,11 +53,14 @@ export class MatchComponent implements OnInit {
                this.diskColour = checkUserPlaying.colour;
             }
 
+            // To avoid every problem, example when user reload the page, just check if isOver is equals to true
+            if (this.matchInfos.isOver == true) {
+               this.winnerPlayer = "RELOAD"; // TODO, gestire questa cosa
+            }
+
             // Socket that update the matchInfo var every time there is a new move or a new message
             this.socket.listen("match_update_" + this.matchInfos["_id"]).subscribe((data: string) => {
                this.getMatchInfo(this.matchInfos["_id"]); // Get the infos from the server
-
-               console.log("DATA: " + data);
 
                // Check if the socket pass a string containing the winner id;
                if (data != undefined && data != "DRAW") {
@@ -60,8 +68,6 @@ export class MatchComponent implements OnInit {
                } else {
                   this.winnerPlayer = data; // Here just set undefined (game is not over) or a draw
                }
-
-               console.log("MATCH STATUS: " + this.winnerPlayer);
 
             }, (err) => { // Error case when listening an websocket event
                console.log("Error while retrieving the informations from the server!");
@@ -88,13 +94,39 @@ export class MatchComponent implements OnInit {
    getMatchInfo(param: any): void {
       // Call the match service that will make a GET request to the server. Then handle the observable
       this.match.get_match_data(param).subscribe((data) => {
-         this.matchInfos = data;
+         this.matchInfos = data; // Save the data in a local field
+
+         // Update the message list based if the user is playing or watching
+         this.matchInfos.messages = this.controlMessageList(this.matchInfos.messages);
       }, (err) => {
          console.log("Error while retrieving the informations from the server!");
          console.log("ERROR: " + JSON.stringify(err));
          this.router.navigate(["/home-page"]);
       });
    }
+
+   /**
+    * Function used to filter the array of messages
+    * @param messages 
+    * @returns 
+    */
+   controlMessageList(messages: Array<any>): Array<any> {
+      var tempMessages = messages;
+      // Check if user is playing. If true, filter the array and get only the messages from both participants
+      if (this.isUserPlaying) {
+         tempMessages = messages.filter((elem) => {
+            return this.matchInfos.participants.find((value: any) => value["_id"] == elem.author) !== undefined;
+         });
+      }
+
+      if (tempMessages.length >= 10) {
+         tempMessages = tempMessages.slice(0, 10);
+      }
+
+      // Otherwise, the user is watching the match. Just show all messages
+      return tempMessages;
+   }
+
 
    makeMoves(colIndex: number): void {
 
@@ -146,6 +178,24 @@ export class MatchComponent implements OnInit {
       } else {
          this.watchingErrorMessage = true; // Set this flag used to show an error message to visitors showing that he can't make a move
       }
+   }
 
+   /**
+    * Function used to call the service to post a new message inside the chat
+    * @param content 
+    */
+   postGameMessage(content: string): void {
+      this.message.postGameMessages(this.matchInfos["_id"], content).subscribe(() => {
+         console.log("New message is posted inside the chat!");
+      }, (err) => {
+         console.log("An error occurred while posting a new message inside the chat!");
+         this.messageError = true;
+      })
+   }
+
+   quitMatch(): void {
+      if (this.winnerPlayer !== undefined || this.isUserPlaying == false) {
+         this.router.navigate(["/home-page"]);
+      }
    }
 }

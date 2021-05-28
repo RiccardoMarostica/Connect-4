@@ -1,28 +1,63 @@
-<div class="container">
-   <div class="container" [ngSwitch]="winnerPlayer">
-      <h3 *ngSwitchCase="'WIN'">Il match è terminato. Hai vinto!</h3>
-      <h3 *ngSwitchCase="'LOSE'">Il match è terminato. Hai perso!</h3>
-      <h3 *ngSwitchCase="'DRAW'">Il match è terminato. Il match è finito in pareggio!</h3>
-      <h3 *ngSwitchDefault>Sta giocando il player: {{matchInfos.turn}}</h3>
+<div class="d-flex justify-content-center">
+   <div class="col-5">
+      <div class="container" [ngSwitch]="winnerPlayer">
+         <h3 *ngSwitchCase="'WIN'">Il match è terminato. Hai vinto!</h3>
+         <h3 *ngSwitchCase="'LOSE'">Il match è terminato. Hai perso!</h3>
+         <h3 *ngSwitchCase="'DRAW'">Il match è terminato. Il match è finito in pareggio!</h3>
+         <h3 *ngSwitchDefault>
+            <div *ngIf="matchInfos.turn === user.get_user_id(); then userTurn else opponentsTurn"></div>
+         </h3>
+
+         <ng-template #userTurn>
+            <h3>Tocca a te! è il tuo turno</h3>
+         </ng-template>
+         <ng-template #opponentsTurn>
+            <h3>Il tuo avversario sta pensando! Aspetta il tuo turno</h3>
+         </ng-template>
+      </div>
+
+      <div *ngFor="let rows of matchInfos.grid" class="row" style="margin: 5px">
+         <div *ngFor="let cols of rows; index as i" class="column" (click)="makeMoves(i)">
+            <div *ngIf="cols=='EMPTY'">
+               <svg height="100" width="100" class="row-0">
+                  <circle cx="50" cy="50" r="40" stroke="#0B4E72" stroke-width="3" class="free" />
+               </svg>
+            </div>
+            <div *ngIf="cols=='RED'">
+               <svg height="100" width="100" class="row-0">
+                  <circle cx="50" cy="50" r="40" stroke="#0B4E72" stroke-width="3" fill="red" />
+               </svg>
+            </div>
+            <div *ngIf="cols=='YELLOW'">
+               <svg height="100" width="100" class="row-0">
+                  <circle cx="50" cy="50" r="40" stroke="#0B4E72" stroke-width="3" fill="yellow" />
+               </svg>
+            </div>
+         </div>
+         <br>
+      </div>
+
+      <div class="container my-4">
+         <button type="button" class="btn btn-danger btn-lg" (click)="quitMatch()">Esci dalla partita</button>
+      </div>
    </div>
-   <div *ngFor="let rows of matchInfos.grid" class="row" style="margin: 5px">
-      <div *ngFor="let cols of rows; index as i" class="column" (click)="makeMoves(i)">
-         <div *ngIf="cols=='EMPTY'">
-            <svg height="100" width="100" class="row-0">
-               <circle cx="50" cy="50" r="40" stroke="#0B4E72" stroke-width="3" class="free" />
-            </svg>
-         </div>
-         <div *ngIf="cols=='RED'">
-            <svg height="100" width="100" class="row-0">
-               <circle cx="50" cy="50" r="40" stroke="#0B4E72" stroke-width="3" fill="red" />
-            </svg>
-         </div>
-         <div *ngIf="cols=='YELLOW'">
-            <svg height="100" width="100" class="row-0">
-               <circle cx="50" cy="50" r="40" stroke="#0B4E72" stroke-width="3" fill="yellow" />
-            </svg>
+   <div col="col-7">
+      <div class="form-group d-grid gap-2 py-4">
+         <h1 class="display-6">Chat</h1>
+         <textarea class="form-control" #messagetxt id="messagetext" rows="1"
+            placeholder="Enter your message here"></textarea>
+         <button type="submit" class="btn btn-outline-primary btn-lg mt-2"
+            (click)="postGameMessage(messagetxt.value)">Post<i class="fas fa-paper-plane"></i></button>
+      </div>
+      <div class="row">
+         <div class="col-12">
+            <div *ngFor="let message of matchInfos.messages" class="card" style="margin: 5px">
+               <div class="card-body friendMessage">
+                  <h6 class="card-subtitle mb-2 text-muted">{{message.author}}</h6>
+                  <p class="card-text">{{ message.content }}</p>
+               </div>
+            </div>
          </div>
       </div>
-      <br>
    </div>
 </div>

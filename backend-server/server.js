@@ -29,7 +29,8 @@
  *
  *    REQUEST                 ATTRIBUTES        METHOD            DESCRIPTION
  *    /messages               ?user=            GET               Return all the posted messages with a specific user, retrieving these from MongoDB
- *    /messages               ?match=           GET               Return all the posted messages during a specific game using WebSocket.
+ *    /messages               ?chat_id=         POST              Post a new message inside a chat with an user, saving it inside MongoDB.
+ *    /messages               ?match=           POST              Post a message inside the match chat, saving it inside MongoDB
  *
  * 4- Statistics: Each player can see his statistics during the period. Also, moderators can see the statistics of any other user
  *
@@ -44,8 +45,7 @@
  *    /game                   ---               GET               Get all the matches in progress and not concluded
  *    /game                   ?game=            GET               Get the informations about a specific game using his id, including the messages
  *    /game/create            ?user=            GET               Create a game with a friend inside user's friendlist. Instead to create a game with waiting state we used socket.io
- *    /game/move              ?game=            POST              Make a moves during the game passing where user put the disk, just need x value of the matrix cause then send a notification to opponent showing which moves user made.
- *    /game/message           ?game=            POST              Post a message inside the match chat
+ *    /game                   ?game=            POST              Make a moves during the game passing where user put the disk, just need x value of the matrix cause then send a notification to opponent showing which moves user made.
  *
  * ----------------------------------------------------------
  *
@@ -359,6 +359,34 @@ app.route("/messages").get(auth, function (req, res, next) {
                 });
             });
         }
+        else if (req.query.match) {
+            // Take the id of the match from the query parameters inside url
+            var matchId = req.query.match;
+            // Update the document with specific _id, adding the new message
+            match.getModel().updateOne({ _id: matchId }, {
+                $push: {
+                    messages: {
+                        $each: [receiveMessage],
+                        $sort: -1
+                    }
+                }
+            }).then(() => {
+                console.log("SUCCESS: ".green + "A new message was added inside a match");
+                ios.emit("match_update_" + matchId); // emit that a new message was posted to all the players inside the match
+                return res.status(200).json({
+                    error: false,
+                    message: "Message posted on the match chat!"
+                });
+            }, (err) => {
+                // Log the error in case 
+                console.log("ERROR: ".red + "An error occurred while posting a new message inside a match! Error: " + err);
+                return next({
+                    statusCode: 400,
+                    error: true,
+                    message: "DB error: " + err
+                });
+            });
+        }
         else {
             // An error occurred cause user make a request with parameters inside query that are not valid. Call next middleware
             console.log("ERROR: ".red + "Request query parameter is not valid");
@@ -656,9 +684,9 @@ app.route("/game").get(auth, (req, res, next) => {
         });
     }
 }));
-app.route("/game/create").get(auth, (req, res, next) => {
+app.route("/game/create").get(auth, (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
     // In this case, an user ask to his friend to play a game.
-    if (req.query.user) {
+    if (req.query.user && !req.query.status) {
         console.log("TEST: ".gray + "Ask to create a match to " + req.query.user);
         // Create a socket used to send a request to other player
         ios.emit("game_request_" + req.query.user, {
@@ -666,8 +694,63 @@ app.route("/game/create").get(auth, (req, res, next) => {
             username: req.user["username"],
             stats: req.user["stats"]
         });
+        return res.status(200).json({
+            error: false,
+            message: "A request is sent to a friend to play a game!"
+        });
     }
-    return res.status(200).json({});
+    if (req.query.user && req.query.status) { // Check if also a status query parameter exist. This is used to set a match with a friend
+        if (req.query.status == "ACCEPT") {
+            var colours = ["RED", "YELLOW"];
+            var randomValue = Math.floor(Math.random() * 2);
+            // Create the array of the two participants with the corrispective color to use during the match
+            var participants = [{
+                    _id: req.user["id"],
+                    colour: colours[randomValue]
+                }, {
+                    _id: req.query.user,
+                    colour: colours[Math.abs(randomValue - 1)]
+                }];
+            // Choose who start first
+            var playerFirstTurn = participants[randomValue]["_id"];
+            var grid = [
+                ["EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY"],
+                ["EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY"],
+                ["EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY"],
+                ["EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY"],
+                ["EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY"],
+                ["EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY"]
+            ];
+            // Create the match, adding the participants, setting that the match isn't over and who has the first turn
+            var matchInfo = yield match.getModel().create({
+                participants: participants,
+                messages: [],
+                isOver: false,
+                turn: playerFirstTurn,
+                grid: grid
+            });
+            console.log("TEST: " + "match infos: " + matchInfo);
+            // emit the match infos
+            ios.emit("accept_friend_game", matchInfo);
+            return res.status(200).json({
+                error: false,
+                message: "Other player accept the request. Creating a new match!"
+            });
+        }
+        else {
+            return res.status(200).json({
+                error: false,
+                message: "Other player deny the request."
+            });
+        }
+    }
+    return next({
+        statusCode: 400,
+        error: true,
+    });
+}));
+app.route("/game/messages").get(auth, (req, res, next) => {
+    // Get from the body the content of the message
 });
 /**
  * -------------------------------------------------------
@@ -832,7 +915,6 @@ mongoose.connect('mongodb://localhost:27017/connectfour').then(() => {
                         turn: playerFirstTurn,
                         grid: grid
                     });
-                    // TODO Continuare da qui per creazione partita
                     console.log("SUCCESS: ".green + "Create a new match with id: " + matchInfo["_id"]);
                     // Now emit the informations given when the match is created to the players
                     firstUser.socket.emit("match created", matchInfo["_id"]);
