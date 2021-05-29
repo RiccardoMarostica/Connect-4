@@ -31,12 +31,11 @@
  *    /messages               ?chat_id=         POST              Post a new message inside a chat with an user, saving it inside MongoDB.
  *    /messages               ?match=           POST              Post a message inside the match chat, saving it inside MongoDB
  * 
- * 4- Statistics: Each player can see his statistics during the period. Also, moderators can see the statistics of any other user
+ * 4- User profile: an user can see his profile, showing his id, username, email and stats
  * 
  *    REQUEST                 ATTRIBUTES        METHOD            DESCRIPTION
- *    /stats                  ---               GET               Get the statistics. If this call is made by a moderator show statistics of each user, otherwise only for current user
- *    /stats                  ---               POST              Update user stats   
- *    /stats                  ?user=            GET               Get the statistics of a specific user, used by moderator
+ *    /user                   ---               GET               Get user informations about his profile.
+ *    /users                  ---               GET               Get the informations about all users. This endpoint can be called only by a moderator 
  * 
  * 5- Game mechanics: Handled all the request to start a game with a normal person or a friend. Also, there are the request to handle the moves made by each user
  * 
@@ -236,7 +235,8 @@ app.post("/login", passport.authenticate('basic', { session: false }), (req, res
    var token = { // Create the token with useful informations
       username: req.user["username"],
       email: req.user["email"],
-      id: req.user["id"]
+      id: req.user["id"],
+      roles: req.user["roles"]
    }
 
    // Now sign the token
@@ -292,7 +292,8 @@ app.post("/register", (req, res, next) => {
       var token = { // Create the token with useful informations
          username: newUser.username,
          email: newUser.email,
-         id: newUser._id
+         id: newUser._id,
+         roles: newUser.roles
       }
 
       // Now sign the token
@@ -787,13 +788,16 @@ app.route("/game/create").get(auth, async (req, res, next) => {
 
    // In this case, an user ask to his friend to play a game.
    if (req.query.user && !req.query.status) {
-      console.log("TEST: ".gray + "Ask to create a match to " + req.query.user);
+
+      var stats = await user.getModel().find({ _id: req.user["id"] }, { _id: 0, stats: 1 });
+      console.log("TEST: ".gray + JSON.stringify(stats[0].stats));
+
 
       // Create a socket used to send a request to other player
       ios.emit("game_request_" + req.query.user, {
          _id: req.user["id"],
          username: req.user["username"],
-         stats: req.user["stats"]
+         stats: stats[0].stats
       })
 
       return res.status(200).json({
@@ -863,28 +867,76 @@ app.route("/game/create").get(auth, async (req, res, next) => {
 });
 /**
  * -------------------------------------------------------
- *                         STATS
+ *                         USER PROFILE
+ *
+ * These endpoints are used to retrieve the informations about a user profile
+ * or all users, in case the profile is a moderator.
  * 
- * From now on, there are the routing endpoints used to handle
- * user stats.
- * 
- * Just remember that a moderator can see the stats of all players 
  * -------------------------------------------------------
  */
 
-app.route("/stats").get(auth, (req, res, next) => {
+app.route("/user").get(auth, (req, res, next) => {
 
    var userId = req.user["id"];
-   console.log("TEST: " + userId);
 
    user.getModel().find({ _id: userId }, { stats: 1, _id: 1, username: 1, email: 1 }).then((data) => {
-      console.log("TEST: " + JSON.stringify(data));
-      return res.status(200).json(data);
+      return res.status(200).json(data[0]);
    }, (err) => {
       console.log("ERROR: ".red + "An error occurred while getting the stats of the player. Error: " + err);
       return next({ statusCode: 400, error: true, message: "DB error: " + err });
    });
-})
+});
+
+
+app.route("/users").get(auth, async (req, res, next) => {
+
+   // Get user informations from the request
+   var userInfo = req.user;
+
+   if (userInfo != undefined) {
+      // Just check the informations are avaible and the user is a moderator
+      if (user.is_moderator(userInfo["roles"])) {
+         user.getModel().find({ _id: { $ne: userInfo["id"] } }, { _id: 1, username: 1, email: 1, stats: 1 }).then((data) => {
+            console.log("SUCCESS: ".green + "Retrieve the list of the users present inside database!");
+            return res.status(200).json(data);
+         }, (err) => {
+            // An error occurred
+            console.log("ERROR: ".red + "An error occurred while getting the list of the users. Error: " + err);
+            return next({ statusCode: 400, error: true, message: "DB error: " + err });
+         })
+      } else {
+
+         // Try to get the friendlist array of an user
+         var list: Array<any> = [];
+         try {
+            var result: Array<any> = await user.getModel().find({ _id: userInfo["id"] }, { friendlist: 1, _id: 0 });
+            list = result[0]["friendlist"];
+         } catch (err) { // An error occurred
+            console.log("ERROR: ".red + "An error occurred while retrieving the friendlist. Error: " + err);
+            return next({ statusCode: 400, error: true, message: "DB error: " + err });
+         }
+
+         // Foreach user inside friendlist, retrieve the stats
+         list.forEach(async function(element) {
+            try {
+               var stats = await user.getModel().find({ _id: element["_id"] }, { stats: 1, _id: 0 });
+               console.log(stats[0]["stats"]);
+               element.stats = stats[0]["stats"]; // TODO: sistemare questo
+            } catch (err) { // An error occurred
+               console.log("ERROR: ".red + "An error occurred while retrieving the stats of friends. Error: " + err);
+               return next({ statusCode: 400, error: true, message: "DB error: " + err });
+            }
+         });
+
+         // return the array of friends updated with stats
+         return res.status(200).json(list);
+      }
+   } else {
+      // User informations are not avaible
+      return next({ statusCode: 400, error: true, message: "You don't have the permission to access inside this endpoint!" });
+   }
+
+});
 
 
 /**
@@ -947,7 +999,11 @@ mongoose.connect('mongodb://localhost:27017/connectfour').then(() => {
       var firstUser = user.newUser({
          username: "admin",
          email: "admin@admin.it",
-         roles: {},
+         roles: {
+            mod: {
+               isEnabled: true
+            }
+         },
          stats: {
             games: 0,
             win: 0,
@@ -957,10 +1013,7 @@ mongoose.connect('mongodb://localhost:27017/connectfour').then(() => {
          friendlist: [],
          isOnline: false
       });
-
-      firstUser.setModerator();
       firstUser.setPassword("admin");
-
       console.log(firstUser);
 
       return firstUser.save(); // Save the new user inside MongoDB and return this promises

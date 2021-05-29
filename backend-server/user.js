@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.newUser = exports.getModel = exports.getSchema = void 0;
+exports.is_moderator = exports.newUser = exports.getModel = exports.getSchema = void 0;
 /**
  * -------------------------------------------------------
  * MODULES USED TO DEVELOP THE BACKEND OF THE APPLICATION
@@ -83,24 +83,6 @@ userSchema.methods.validatePassword = function (password) {
     return (this.digest === digest);
 };
 /**
- * Function that check if the user is a moderator
- *
- * @returns True if the user is an moderator, false otherwise
- */
-userSchema.methods.isModerator = function () {
-    if (this.roles['mod'])
-        return true;
-    return false;
-};
-/**
- * Function used to add a moderator privilege to an user
- */
-userSchema.methods.setModerator = function () {
-    if (!this.isModerator()) {
-        this.roles['mod'] = true;
-    }
-};
-/**
  * Function used to get the current schema about an user
  *
  * @returns userSchema
@@ -134,4 +116,15 @@ function newUser(data) {
     return new _model(data); // create a new user
 }
 exports.newUser = newUser;
+/**
+ * Function used to check if an user is a moderator
+ * @param role Object of roles
+ * @returns
+ */
+function is_moderator(roles) {
+    if (roles.mod !== undefined && roles.mod.isEnabled == true)
+        return true;
+    return false;
+}
+exports.is_moderator = is_moderator;
 //# sourceMappingURL=user.js.map

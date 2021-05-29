@@ -8,6 +8,8 @@ import { HomePageComponent } from './home-page/home-page.component';
 import { FriendChatComponent } from './friend-chat/friend-chat.component';
 import { MatchComponent } from './match/match.component';
 import { MatchListComponent } from './match-list/match-list.component';
+import { UserProfileComponent } from './user-profile/user-profile.component';
+import { UserListComponent } from './user-list/user-list.component';
 
 /**
  * Imports all the components used on client side.
@@ -23,7 +25,9 @@ const routes: Routes = [
   { path: 'home-page', component: HomePageComponent },
   { path: 'friend-chat/:friend_id', component: FriendChatComponent },
   { path: 'match/:match_id', component: MatchComponent },
-  { path: 'match-list', component: MatchListComponent }
+  { path: 'match-list', component: MatchListComponent },
+  { path: 'profile', component: UserProfileComponent },
+  { path: 'user-list', component: UserListComponent }
 ];
 
 @NgModule({

@@ -17,7 +17,7 @@ export class HomePageComponent implements OnInit {
    friendGameRequest: any = undefined;
    closeResult: string = '';
 
-   constructor(private user: UserHttpService, public router: Router, private socket: SocketioService, private modalService: NgbModal, private location: LocationStrategy) {
+   constructor(public user: UserHttpService, public router: Router, private socket: SocketioService, private modalService: NgbModal, private location: LocationStrategy) {
       // preventing back button in browser
       history.pushState(null, '', window.location.href);
       this.location.onPopState(() => {
@@ -26,7 +26,6 @@ export class HomePageComponent implements OnInit {
    }
 
    ngOnInit() {
-
       // First of all get from mongoDB user friend list
       this.get_friends();
 
@@ -149,12 +148,17 @@ export class HomePageComponent implements OnInit {
     * @param status 
     */
    complete_match_request(friendId: string, status: string): void {
-      this.user.complete_friend_game_request(friendId, status).subscribe(() => {
-         console.log("Creating a match with friend");
-      }, (err) => {
-         console.log("An error occurred while creating a match with a friend");
-         console.log("ERROR: " + err);
-      })
+      if (status == "ACCEPT") {
+         this.user.complete_friend_game_request(friendId, status).subscribe(() => {
+            console.log("Creating a match with friend");
+         }, (err) => {
+            console.log("An error occurred while creating a match with a friend");
+            console.log("ERROR: " + err);
+         })
+      } else {
+         this.friendGameRequest = undefined;
+         console.log("Deny to play a match with a friend!");
+      }
    }
 
    /**

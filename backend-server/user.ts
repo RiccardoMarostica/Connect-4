@@ -38,9 +38,7 @@ export interface User extends mongoose.Document {
    friendslist: []      // list of friends. This array contains the friends' ids.
    isOnline: boolean    // flag useful to friends to see if you're online or not
    setPassword: (password: string) => void,
-   validatePassword: (password: string) => boolean,
-   isModerator: () => boolean,
-   setModerator: () => void
+   validatePassword: (password: string) => boolean
 }
 
 // Then create user mongoose schema, that contains, as the interface, all the informations and the methods about an user.
@@ -123,24 +121,6 @@ userSchema.methods.validatePassword = function (password: string): boolean {
 }
 
 /**
- * Function that check if the user is a moderator
- * 
- * @returns True if the user is an moderator, false otherwise
- */
-userSchema.methods.isModerator = function (): boolean {
-   if (this.roles['mod']) return true;
-   return false;
-}
-/**
- * Function used to add a moderator privilege to an user
- */
-userSchema.methods.setModerator = function () {
-   if (!this.isModerator()) {
-      this.roles['mod'] = true
-   }
-}
-
-/**
  * Function used to get the current schema about an user
  * 
  * @returns userSchema
@@ -175,4 +155,14 @@ export function getModel(): mongoose.Model<User> {
 export function newUser(data: Object): User {
    var _model = getModel(); // Retrieve the user model on MongoDB
    return new _model(data); // create a new user
+}
+
+/**
+ * Function used to check if an user is a moderator
+ * @param role Object of roles
+ * @returns 
+ */
+export function is_moderator(roles: any): boolean {
+   if(roles.mod !== undefined && roles.mod.isEnabled == true) return true;
+   return false;
 }

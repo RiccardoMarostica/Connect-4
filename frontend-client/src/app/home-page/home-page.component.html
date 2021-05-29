@@ -1,97 +1,142 @@
+<header>
+   <nav class="navbar navbar-expand-lg navbar-light bg-light px-4 py-4">
+      <h1>Connect-4</h1>
+      <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent"
+         aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+         <span class="navbar-toggler-icon"></span>
+      </button>
+
+      <div class="collapse navbar-collapse justify-content-end" id="navbarSupportedContent">
+         <ul class="navbar-nav mr-auto">
+            <li class="nav-item active">
+               <a class="nav-link">Home <span class="sr-only">(current)</span></a>
+            </li>
+            <li class="nav-item">
+               <a class="nav-link" [routerLink]="['/profile']">Profile</a>
+            </li>
+            <li class="nav-item" *ngIf="user.is_admin()">
+               <a class="nav-link" [routerLink]="['/user-list']">See all profiles</a>
+            </li>
+         </ul>
+      </div>
+   </nav>
+</header>
+
+
 <div class="container">
-  <div class="alert text-center" *ngIf="friendRequest">
-    <h3>Nuova richiesta amico:</h3>
-    <p>Username: {{friendRequest.username}}<br>ID: {{friendRequest.id}}</p>
-    <div class="row justify-content-center">
-      <div class="col-5">
-        <button type="button" class="btn btn-success btn-lg"
-          (click)="complete_friend_request(friendRequest, 'ACCEPT')">Accetta</button>
+   <div class="alert text-center" *ngIf="friendRequest">
+      <h3>Nuova richiesta amico:</h3>
+      <p>Username: {{friendRequest.username}}<br>ID: {{friendRequest.id}}</p>
+      <div class="row justify-content-center">
+         <div class="col-5">
+            <button type="button" class="btn btn-success btn-lg"
+               (click)="complete_friend_request(friendRequest, 'ACCEPT')">Accetta</button>
+         </div>
+         <div class="col-5">
+            <button type="button" class="btn btn-danger btn-lg"
+               (click)="complete_friend_request(friendRequest, 'DENY')">Rifiuta</button>
+         </div>
       </div>
-      <div class="col-5">
-        <button type="button" class="btn btn-danger btn-lg"
-          (click)="complete_friend_request(friendRequest, 'DENY')">Rifiuta</button>
-      </div>
-    </div>
-  </div>
+   </div>
 </div>
 
 <div class="container">
-  <div class="alert text-center" *ngIf="friendGameRequest">
-    <h3>Richiesta creazione nuova partita contro:</h3>
-    <p>Username: {{friendGameRequest.username}}</p>
-    <p>ID: {{friendGameRequest._id}}</p>
-    <p>stats: games: {{friendGameRequest.stats.games}}, wins: {{friendGameRequest.stats.win}}, lose:
-      {{friendGameRequest.stats.lose}}</p>
-    <div class="row justify-content-center">
-      <div class="col-5">
-        <button type="button" class="btn btn-success btn-lg"
-          (click)="complete_match_request(friendGameRequest._id, 'ACCEPT')">Accetta</button>
+   <div class="alert text-center" *ngIf="friendGameRequest">
+      <h3>Richiesta creazione nuova partita contro:</h3>
+      <p>Username: {{friendGameRequest.username}}</p>
+      <p class="text-secondary">Identifier: <i>{{friendGameRequest._id}}</i></p>
+      <div class="row justify-content-center">
+         <div class="col-sm-12 text-center mb-2">
+            <h6 class="mb-0">Statistics</h6>
+            <p class="text-secondary"><i>in {{friendGameRequest.stats.games}} games</i></p>
+         </div>
+         <div class="col-sm-2 text-center">
+            <h6>Win:</h6>
+            <p class="text-secondary">{{friendGameRequest.stats.win}}</p>
+         </div>
+         <div class="col-sm-2 text-center">
+            <h6>Draw:</h6>
+            <p class="text-secondary">{{friendGameRequest.stats.draw}}</p>
+         </div>
+         <div class="col-sm-2 text-center">
+            <h6>Lose:</h6>
+            <p class="text-secondary">{{friendGameRequest.stats.lose}}</p>
+         </div>
       </div>
-      <div class="col-5">
-        <button type="button" class="btn btn-danger btn-lg"
-          (click)="complete_match_request(friendGameRequest._id, 'ACCEPT')">Rifiuta</button>
+      <div class="row justify-content-center">
+         <div class="col-5">
+            <button type="button" class="btn btn-success btn-lg"
+               (click)="complete_match_request(friendGameRequest._id, 'ACCEPT')">Accetta</button>
+         </div>
+         <div class="col-5">
+            <button type="button" class="btn btn-danger btn-lg"
+               (click)="complete_match_request(friendGameRequest._id, 'DENY')">Rifiuta</button>
+         </div>
       </div>
-    </div>
-  </div>
+   </div>
 </div>
-
 
 <div class="row">
-  <div class="col-9">
-    <p>Qui vanno le info etc..</p>
-    <button type="button" class="btn btn-outline-primary" (click)="open('WAITING ROOM', waitingRoom)">Ricerca
-      partita</button>
-      <button type="button" class="btn btn-outline-primary" [routerLink]="['/match-list']">Visualizza partite iniziate</button>
-  </div>
-  <div class="col-3">
-    <p>Qui va la friendlist</p>
-    <div *ngFor="let friend of friendList" class="card" style="margin: 5px">
-      <div class="nearby-user">
-        <div class="row">
-          <div class="col-md-3 col-sm-3 py-2">
-            <img src="https://bootdey.com/img/Content/avatar/avatar7.png" alt="user" class="profile-photo-lg">
-          </div>
-          <div class="col-md-9 col-sm-9 py-2">
-            <h5>{{friend.username}}</h5>
-            <p>{{friend._id}}</p>
-          </div>
-        </div>
-        <div class="row text-center py-2">
-          <div class="col-md-4 col-sm-4">
-            <button type="button" class="btn btn-outline-danger" (click)="remove_friend(friend._id)">Rimuovi</button>
-          </div>
-          <div class="col-md-4 col-sm-4">
-            <button type="button" class="btn btn-outline-primary"
-              [routerLink]="['/friend-chat', friend._id]">Messaggia</button>
-          </div>
-          <div class="col-md-4 col-sm-4">
-            <button type="button" class="btn btn-outline-primary"
-              (click)="create_friend_game(friend._id)">Sfida</button>
-          </div>
-        </div>
+   <div class="col-9">
+      <p>Qui vanno le info etc..</p>
+      <button type="button" class="btn btn-outline-primary" (click)="open('WAITING ROOM', waitingRoom)">Ricerca
+         partita</button>
+      <button type="button" class="btn btn-outline-primary" [routerLink]="['/match-list']">Visualizza partite
+         iniziate</button>
+   </div>
+   <div class="col-3">
+      <p>Qui va la friendlist</p>
+      <div *ngFor="let friend of friendList" class="card" style="margin: 5px">
+         <div class="nearby-user">
+            <div class="row">
+               <div class="col-md-3 col-sm-3 py-2">
+                  <img src="https://bootdey.com/img/Content/avatar/avatar7.png" alt="user" class="profile-photo-lg">
+               </div>
+               <div class="col-md-9 col-sm-9 py-2">
+                  <h5>{{friend.username}}</h5>
+                  <p class="text-secondary">id: <i>{{friend._id}}</i></p>
+               </div>
+            </div>
+            <div class="row text-center py-2">
+               <div class="col-md-4 col-sm-4">
+                  <button type="button" class="btn btn-outline-danger"
+                     (click)="remove_friend(friend._id)">Rimuovi</button>
+               </div>
+               <div class="col-md-4 col-sm-4">
+                  <button type="button" class="btn btn-outline-primary"
+                     [routerLink]="['/friend-chat', friend._id]">Messaggia</button>
+               </div>
+               <div class="col-md-4 col-sm-4">
+                  <button type="button" class="btn btn-outline-primary"
+                     (click)="create_friend_game(friend._id)">Sfida</button>
+               </div>
+            </div>
+         </div>
       </div>
-    </div>
-    <form class="row g-3">
-      <div class="col-auto">
-        <input #friendIdTxt type="text" class="form-control" id="friendTxt" placeholder="Inserisci l'id dell'utente">
-      </div>
-      <div class="col-auto">
-        <button type="submit" class="btn btn-primary mb-3" (click)="send_friend_request(friendIdTxt.value)">Add</button>
-      </div>
-    </form>
-  </div>
+      <form class="row g-3">
+         <div class="col-auto">
+            <input #friendIdTxt type="text" class="form-control" id="friendTxt"
+               placeholder="Inserisci l'id dell'utente">
+         </div>
+         <div class="col-auto">
+            <button type="submit" class="btn btn-primary mb-3"
+               (click)="send_friend_request(friendIdTxt.value)">Add</button>
+         </div>
+      </form>
+   </div>
 </div>
 
 
 <ng-template #waitingRoom let-modal>
-  <div class="modal-header">
-    <h4 class="modal-title" id="modal-basic-title">Searching a new match</h4>
-  </div>
-  <div class="modal-body">
-    <p>We are searching an opponent with stats similar to yours. Wait until we find a good opponent!</p>
-    <p>If you want to quit the waiting room just click outside this window or press the "Stop research" button.</p>
-  </div>
-  <div class="modal-footer d-grid gap-2">
-    <button type="button" class="btn btn-outline-danger" (click)="modal.dismiss('Stop research')">Stop research</button>
-  </div>
+   <div class="modal-header">
+      <h4 class="modal-title" id="modal-basic-title">Searching a new match</h4>
+   </div>
+   <div class="modal-body">
+      <p>We are searching an opponent with stats similar to yours. Wait until we find a good opponent!</p>
+      <p>If you want to quit the waiting room just click outside this window or press the "Stop research" button.</p>
+   </div>
+   <div class="modal-footer d-grid gap-2">
+      <button type="button" class="btn btn-outline-danger" (click)="modal.dismiss('Stop research')">Stop
+         research</button>
+   </div>
 </ng-template>

@@ -1,15 +1,13 @@
 import { Injectable } from '@angular/core';
-
 import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http'; // Import HTTP used to create requests to our server
 import { Observable, throwError } from 'rxjs'; // When you make an HTTP call, the return value is an Observable so import it
 import { tap, catchError } from 'rxjs/operators';
-
 import jwt from 'jwt-decode';
 
 interface TokenData {
    username: string,
    mail: string,
-   roles: string[],
+   roles: any,
    id: string
 }
 
@@ -151,6 +149,11 @@ export class UserHttpService {
       })
    }
 
+   /**
+    * Function used to make an http request to create a game with a friend
+    * @param userId 
+    * @returns 
+    */
    friend_request_game(userId: string): Observable<any> {
       return this.http.get(this.url + "/game/create", {
          headers: new HttpHeaders({
@@ -164,6 +167,12 @@ export class UserHttpService {
       })
    }
 
+   /**
+    * Function used to make an http request used to accept/deny a friend game request
+    * @param userId 
+    * @param status 
+    * @returns 
+    */
    complete_friend_game_request(userId: string, status: string): Observable<any> {
       return this.http.get(this.url + "/game/create", {
          headers: new HttpHeaders({
@@ -180,11 +189,61 @@ export class UserHttpService {
       });
    }
 
+   /**
+    * Function used to make an http call to get the informations about an user
+    * @returns 
+    */
+   get_profile(): Observable<any> {
+      return this.http.get(this.url + "/user", {
+         headers: new HttpHeaders({
+            authorization: 'Bearer ' + this.get_token(),
+            'cache-control': 'no-cache',
+            'Content-Type': 'application/json',
+         })
+      });
+   }
+
+   /**
+    * Function used to make an http call to the server to retrieve all the users 
+    * present inside the database
+    * @returns 
+    */
+   get_user_list(): Observable<any> {
+      return this.http.get(this.url + "/users", {
+         headers: new HttpHeaders({
+            authorization: 'Bearer ' + this.get_token(),
+            'cache-control': 'no-cache',
+            'Content-Type': 'application/json',
+         })
+      });
+   }
+
+   /**
+    * Function used to retrieve the token saved when user log in
+    * @returns 
+    */
    get_token(): any {
       return this.token;
    }
 
+   /**
+    * Function used to retrieve the user id from the token
+    * @returns 
+    */
    get_user_id(): string {
       return (jwt(this.token) as TokenData).id;
+   }
+
+   /**
+    * Function used to check if the user has MOD role or not, using the informations
+    * present inside the JWT
+    * @returns 
+    */
+   is_admin(): boolean {
+      var roles = (jwt(this.token) as TokenData).roles;
+      if (roles.mod !== undefined && roles.mod.isEnabled == true) {
+         return true;
+      }
+      return false;
    }
 }
