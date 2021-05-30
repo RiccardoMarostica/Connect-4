@@ -18,7 +18,16 @@ export class UserRegistrationComponent implements OnInit {
   }
 
   signup() {
-    this.us.registration(this.user).subscribe((data) => {
+
+    // Creating a body request, setting this user is not a new moderator
+    // and also the user informations
+    var body = {
+      newMod: false,
+      user: this.user
+    }
+
+    // Call the user service used to registrer a new user
+    this.us.registration(body).subscribe((data) => {
       console.log("SUCCESS: Created a new account. Login granted!");
       this.router.navigate(["/home-page"]);
     }, (err) => {

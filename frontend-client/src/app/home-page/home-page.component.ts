@@ -12,10 +12,12 @@ import { LocationStrategy } from '@angular/common';
 })
 export class HomePageComponent implements OnInit {
 
-   friendList: any = [];
-   friendRequest: any = undefined;
-   friendGameRequest: any = undefined;
-   closeResult: string = '';
+   friendList: any = []; // Array of friends
+   friendRequest: any = undefined; // flag used when an user receive a friend request
+   friendGameRequest: any = undefined; // flag used when an user receive a game request froma a friend
+
+   moderatorTemplate = { email: '', password: '', username: '' }; // template of the moderator when a mod wants to add a new one
+   moderatorMessage: string | undefined = undefined;
 
    constructor(public user: UserHttpService, public router: Router, private socket: SocketioService, private modalService: NgbModal, private location: LocationStrategy) {
       // preventing back button in browser
@@ -198,6 +200,30 @@ export class HomePageComponent implements OnInit {
                this.waiting_room("EXIT");
             });
             break;
+         case "CREATE MOD":
+            this.modalService.open(content, { ariaLabelledBy: 'modal-basic-title' }).result.then(() => {
+            }, () => {
+               console.log("Exit to create a moderator!");
+            });
+            break;
+      }
+   }
+
+   /**
+    * Function called when a moderator wants to add a new moderator
+    * Inside this function moderatorMessage is used to set the message
+    * after adding a moderator. Can go well or find an error
+    */
+   add_new_moderator(): void {
+      if (this.user.is_admin()) { // Just check if user is a moderator
+         this.user.create_moderator(this.moderatorTemplate).subscribe(() => {
+            this.moderatorMessage = "SUCCESS";
+         }, (err) => {
+            this.moderatorMessage = "ERROR";
+            console.log("ERROR: " + err);
+         })
+      } else {
+         this.moderatorMessage = "ERROR";
       }
    }
 }

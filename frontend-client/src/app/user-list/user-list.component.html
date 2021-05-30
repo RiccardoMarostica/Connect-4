@@ -1,6 +1,24 @@
 <div class="container my-4">
-   <div *ngFor="let specificUser of userList">
+   <div class="container" *ngIf="user.is_admin(); then adminText else userText"></div>
+   <ng-template #adminText>
+      <h1>Informazioni utenti</h1>
+      <p class="text-secondary">All'interno di questa pagina sono presenti tutte le informazioni riguardo a tutti gli utenti presenti all'interno
+         dell'applicazione.
+         In questa pagina è poi possibile rimuovere un utente dall'applicazione.
+      </p>
+   <div [ngSwitch]="userList.length">
+      <p class="text-secondary" *ngSwitchCase="0">Nessun altro utente è presente all'interno dell'applicazione!</p>
+      <p class="text-secondary" *ngSwitchCase="1">Al momento è presente un altro giocatore all'interno dell'applicazione!</p>
+      <p class="text-secondary" *ngSwitchDefault>Al momento sono presenti {{userList.length}} giocatori all'interno dell'applicazione!</p>
+   </div>
+   </ng-template>
+   <ng-template #userText>
+      <h1>Informazioni amici</h1>
+      <p class="text-secondary">All'interno di questa pagina sono presenti tutte le informazioni ai tuoi amici, comprese le loro statistiche.
+      </p>
+   </ng-template>
 
+   <div *ngFor="let specificUser of userList">
       <div class="main-body">
          <div class="row gutters-sm">
             <div class="col-md-4 mb-3">
@@ -12,10 +30,10 @@
                         <div class="mt-3">
                            <h4>{{specificUser.username}}</h4>
                         </div>
-                     </div>                     
+                     </div>
                      <div class="row text-center" *ngIf="user.is_admin()">
                         <div class="col-6">
-                           <button type="button" class="btn btn-outline-danger">Rimuovi</button>
+                           <button type="button" class="btn btn-outline-danger" (click) = "remove_user(specificUser._id)">Rimuovi</button>
                         </div>
                         <div class="col-6">
                            <button type="button" class="btn btn-outline-primary">Messaggia</button>
@@ -36,13 +54,15 @@
                            {{specificUser._id}}
                         </div>
                      </div>
-                     <hr>
-                     <div class="row">
-                        <div class="col-sm-3">
-                           <h6 class="mb-0">Email</h6>
-                        </div>
-                        <div class="col-sm-9 text-secondary">
-                           {{specificUser.email}}
+                     <div *ngIf="user.is_admin()">
+                        <hr>
+                        <div class="row">
+                           <div class="col-sm-3">
+                              <h6 class="mb-0">Email</h6>
+                           </div>
+                           <div class="col-sm-9 text-secondary">
+                              {{specificUser.email}}
+                           </div>
                         </div>
                      </div>
                      <hr>

@@ -11,10 +11,7 @@
  * 
  *    REQUEST           ATTRIBUTES        METHOD            DESCRIPTION
  *    /login            ---               POST              Login an exsisting user, using a JSON Web Token (JWT) and returning it to client-side
- *    /register         ---               POST              Register a new user, creating the corresponding JWT and returning it to client-side
- *    /register         ---               POST              Used when a moderator made his first login, he will be redirected to a register page used to update his fields inside the array. After that he made a request to update his values. The infos are shared inside the body of the request
- *    /delete           ?user=            DELETE            Remove user access
- *    
+ *    /register         ---               POST              Register a new user. Create the corresponding JWT and returning it. 
  * 
  * 2- Friend list: An user can add or remove a friend inside his friendlist.
  * 
@@ -35,7 +32,10 @@
  * 
  *    REQUEST                 ATTRIBUTES        METHOD            DESCRIPTION
  *    /user                   ---               GET               Get user informations about his profile.
+ *    /user                   ---               POST              Create a new user with moderator privilege.
+ *    /user                   ?user=            DELETE            Remove an user from the application. Also, remove it from the friendlist of users
  *    /users                  ---               GET               Get the informations about all users. This endpoint can be called only by a moderator 
+ * 
  * 
  * 5- Game mechanics: Handled all the request to start a game with a normal person or a friend. Also, there are the request to handle the moves made by each user
  * 
@@ -114,6 +114,7 @@ import sio = require('socket.io');               // Socket.io websocket library
 
 import jsonwebtoken = require('jsonwebtoken')   // Module that implements JSON Web Token (JWT) generation
 import jwt = require('express-jwt')             // Middleware that parsing JWT for Express
+import { userInfo } from 'os';
 
 
 
@@ -258,9 +259,9 @@ app.post("/register", (req, res, next) => {
 
    console.log("REQUEST: ".yellow + "Creating a new user");
 
-   var userData = req.body;
-
-   // Add the stats to user, donì't care if is normal or he is a moderator
+   var userIsMod = req.body.newMod;
+   var userData = req.body.user;
+   // Add the stats to user, don't care if is normal or he is a moderator
    userData.stats = {
       games: 0,
       win: 0,
@@ -268,55 +269,45 @@ app.post("/register", (req, res, next) => {
       draw: 0
    }
 
-   // User doesn't pass the role, so it is a normal user
-   if (userData.roles == undefined) {
+   if (userIsMod) {
+      // In this case the user is a new moderator, so create it inside the database
+      // and return his _id. This is useful 
+
+   } else {
+      // This user is a normal user so he hasn't any roles.
+      // It is necessary to crate him, add it inside mongoDB and
+      // return a response that contain the JWT (status: 200)
+
+      // Normal user, so no roles
       userData.roles = {};
-   }
 
-   // Create a user using Mongo using request body where the informations are stored
-   var newUser = user.newUser(userData);
+      // Create a user using Mongo using request body where the informations are stored
+      var newUser = user.newUser(userData);
 
-   // Check if user put a password
-   if (!userData.password) return next({
-      statusCode: 404,
-      error: true,
-      message: "Password field missing"
-   });
+      // Check if user put a password
+      if (!userData.password) return next({ statusCode: 404, error: true, message: "Password field missing" });
 
-   // Save an user inside MongoDB
-   newUser.setPassword(userData.password);
-   newUser.save().then((result) => {
-
-      console.log("SUCCESS: ".yellow + "User has been registrated");
-
-      var token = { // Create the token with useful informations
-         username: newUser.username,
-         email: newUser.email,
-         id: newUser._id,
-         roles: newUser.roles
-      }
-
-      // Now sign the token
-      var token_signed = jsonwebtoken.sign(token, process.env.JWT_SECRET, { expiresIn: '1h' });
-
-      return res.status(200).json({
-         error: false,
-         token: token_signed,
-         id: result._id
+      // Save an user inside MongoDB
+      newUser.setPassword(userData.password);
+      newUser.save().then(() => {
+         console.log("SUCCESS: ".green + "User has been registrated");
+         // Create the token with useful informations
+         var token = {
+            username: newUser.username,
+            email: newUser.email,
+            id: newUser._id,
+            roles: newUser.roles
+         }
+         // Now sign the token and return it inside the response
+         var token_signed = jsonwebtoken.sign(token, process.env.JWT_SECRET, { expiresIn: '1h' });
+         return res.status(200).json({ error: false, token: token_signed });
+      }).catch((error) => {
+         // An error occurred
+         console.log("ERROR: ".red + "An error occurred while creating a new user! Error: " + error);
+         if (error.reason === 11000) return next({ statusCode: 404, error: true, message: "User already exists" });
+         return next({ statusCode: 404, error: true, message: "DB error: " + error.errmsg });
       })
-   }).catch((error) => {
-      if (error.reason === 11000) return next({
-         statusCode: 404,
-         error: true,
-         message: "User already exists"
-      });
-
-      return next({
-         statusCode: 404,
-         error: true,
-         message: "DB error: " + error.errmsg
-      });
-   })
+   }
 })
 
 /**
@@ -867,7 +858,7 @@ app.route("/game/create").get(auth, async (req, res, next) => {
 });
 /**
  * -------------------------------------------------------
- *                         USER PROFILE
+ *                            USER
  *
  * These endpoints are used to retrieve the informations about a user profile
  * or all users, in case the profile is a moderator.
@@ -885,6 +876,63 @@ app.route("/user").get(auth, (req, res, next) => {
       console.log("ERROR: ".red + "An error occurred while getting the stats of the player. Error: " + err);
       return next({ statusCode: 400, error: true, message: "DB error: " + err });
    });
+}).delete(auth, async (req, res, next) => {
+
+   // Check if the user id is passed
+   if (req.query.user) {
+      var userId: any = req.query.user;
+      try {
+         // First remove the user from the array
+         await user.getModel().deleteOne({ _id: userId });
+
+         // Then remove it from user's friend list, updating all these users
+         await user.getModel().updateMany({ friendlist: { $elemMatch: { _id: userId } } }, { $pull: { friendlist: { _id: userId } } });
+
+         // Return a response where all goes well
+         return res.status(200).json({
+            error: false,
+            message: "The user is removed from the application!"
+         })
+      } catch (err) {
+         // An error occurred
+         console.log("ERROR: ".red + "An error occurred while removing an user from the application. Error: " + err);
+         return next({ statusCode: 400, error: true, message: "DB error: " + err });
+      }
+   }
+}).post(auth, async (req, res, next) => {
+
+   // Get the informations about the new moderator from the body of the request
+   var userInfos = req.body;
+
+   // there are the informations
+   if (userInfos !== undefined || userInfos !== null) {
+
+      // Add informations about the user
+      userInfos.stats = { games: 0, win: 0, lose: 0, draw: 0 };
+      userInfos.roles = { mod: { isEnabled: false } };
+
+      try {
+         // Insert the user inside the database
+         var newUser = user.newUser(userInfos);
+
+         // Check if user put a password
+         if (!userInfos.password) return next({ statusCode: 404, error: true, message: "Password field missing" });
+
+         newUser.setPassword(userInfos.password);
+         await newUser.save();
+
+         return res.status(200).json({ error: false, message: "A new moderator is added!" });
+      } catch (err) {
+         // An error occurred
+         console.log("ERROR: ".red + "An error occurred while creating a new moderator. Error: " + err);
+         return next({ statusCode: 400, error: true, message: "DB error: " + err });
+      }
+
+   } else {
+      // Otherwise, no informations so error
+      console.log("ERROR: ".red + "No informations about the new moderator!");
+      return next({ statusCode: 400, error: true, message: "No informations about the new moderator" });
+   }
 });
 
 
@@ -907,7 +955,7 @@ app.route("/users").get(auth, async (req, res, next) => {
       } else {
 
          // Try to get the friendlist array of an user
-         var list: Array<any> = [];
+         var list: any = [];
          try {
             var result: Array<any> = await user.getModel().find({ _id: userInfo["id"] }, { friendlist: 1, _id: 0 });
             list = result[0]["friendlist"];
@@ -916,20 +964,33 @@ app.route("/users").get(auth, async (req, res, next) => {
             return next({ statusCode: 400, error: true, message: "DB error: " + err });
          }
 
-         // Foreach user inside friendlist, retrieve the stats
-         list.forEach(async function(element) {
+         // Use a temp array cause can't modify the list, adding the stats
+         var friendArray = [];
+
+         for (var i = 0; i < list.length; i++) {
             try {
-               var stats = await user.getModel().find({ _id: element["_id"] }, { stats: 1, _id: 0 });
-               console.log(stats[0]["stats"]);
-               element.stats = stats[0]["stats"]; // TODO: sistemare questo
+               var stats = await user.getModel().find({ _id: list[i]["_id"] }, { stats: 1, _id: 0 });
+               // Create a new map, avoid the fact that on get method, errors are present.
+               // In fact, the get method is used on a Map that get the values inside
+               friendArray.push({
+                  _id: list[i]["_id"],
+                  username: list[i]["username"],
+                  stats: {
+                     game: stats[0]["stats"].get("games"),
+                     win: stats[0]["stats"].get("win"),
+                     lose: stats[0]["stats"].get("lose"),
+                     draw: stats[0]["stats"].get("draw")
+                  }
+               });
             } catch (err) { // An error occurred
                console.log("ERROR: ".red + "An error occurred while retrieving the stats of friends. Error: " + err);
                return next({ statusCode: 400, error: true, message: "DB error: " + err });
             }
-         });
+         }
 
+         console.log("SUCCESS: ".green + "Retrieve the informations about friend list!");
          // return the array of friends updated with stats
-         return res.status(200).json(list);
+         return res.status(200).json(friendArray);
       }
    } else {
       // User informations are not avaible

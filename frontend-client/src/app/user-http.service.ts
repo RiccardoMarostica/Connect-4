@@ -219,6 +219,45 @@ export class UserHttpService {
    }
 
    /**
+    * Function used to make an http request to eliminate an user from
+    * the application. This request can be made from a moderator
+    * Pass the id of the user, and remove it from the application and 
+    * from the friendlist of all users.
+    * @param userId 
+    * @returns 
+    */
+   remove_user(userId: string): Observable<any> {
+      return this.http.delete(this.url + "/user", {
+         headers: new HttpHeaders({
+            authorization: 'Bearer ' + this.get_token(),
+            'cache-control': 'no-cache',
+            'Content-Type': 'application/json',
+         }),
+         params: new HttpParams({
+            fromObject: {
+               user: userId
+            }
+         })
+      })
+   }
+
+   /**
+    * Function used to make an http request to create a new moderator from
+    * the application
+    * @param mod 
+    * @returns 
+    */
+   create_moderator(mod: any): Observable<any> {
+      return this.http.post(this.url + "/user", mod, {
+         headers: new HttpHeaders({
+            authorization: 'Bearer ' + this.get_token(),
+            'cache-control': 'no-cache',
+            'Content-Type': 'application/json',
+         })
+      })
+   }
+
+   /**
     * Function used to retrieve the token saved when user log in
     * @returns 
     */

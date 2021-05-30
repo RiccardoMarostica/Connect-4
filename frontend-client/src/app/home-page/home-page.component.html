@@ -1,3 +1,4 @@
+<!-- header of the page -->
 <header>
    <nav class="navbar navbar-expand-lg navbar-light bg-light px-4 py-4">
       <h1>Connect-4</h1>
@@ -8,21 +9,27 @@
 
       <div class="collapse navbar-collapse justify-content-end" id="navbarSupportedContent">
          <ul class="navbar-nav mr-auto">
-            <li class="nav-item active">
-               <a class="nav-link">Home <span class="sr-only">(current)</span></a>
-            </li>
             <li class="nav-item">
-               <a class="nav-link" [routerLink]="['/profile']">Profile</a>
+               <a class="nav-link" [routerLink]="['/profile']">Il mio profilo</a>
             </li>
+            <li class="nav-item" *ngIf="user.is_admin(); then adminBlock else userBlock"></li>
             <li class="nav-item" *ngIf="user.is_admin()">
-               <a class="nav-link" [routerLink]="['/user-list']">See all profiles</a>
+               <a class="nav-link" (click)="open('CREATE MOD', newModerator)">Crea un moderatore</a>
             </li>
+            <ng-template #adminBlock>
+               <a class="nav-link" [routerLink]="['/user-list']">Tutti i profili</a>
+            </ng-template>
+            <ng-template #userBlock>
+               <a class="nav-link" [routerLink]="['/user-list']">Profili amici</a>
+            </ng-template>
+
          </ul>
       </div>
    </nav>
 </header>
 
 
+<!-- Template used when an user receive a friend request -->
 <div class="container">
    <div class="alert text-center" *ngIf="friendRequest">
       <h3>Nuova richiesta amico:</h3>
@@ -40,6 +47,7 @@
    </div>
 </div>
 
+<!-- Template used when a game request from a friend arrives to the user -->
 <div class="container">
    <div class="alert text-center" *ngIf="friendGameRequest">
       <h3>Richiesta creazione nuova partita contro:</h3>
@@ -77,15 +85,15 @@
 </div>
 
 <div class="row">
+   <!-- Code used to enter in waiting status or watching the game in progress -->
    <div class="col-9">
-      <p>Qui vanno le info etc..</p>
       <button type="button" class="btn btn-outline-primary" (click)="open('WAITING ROOM', waitingRoom)">Ricerca
          partita</button>
       <button type="button" class="btn btn-outline-primary" [routerLink]="['/match-list']">Visualizza partite
          iniziate</button>
    </div>
+   <!-- Code used for the friendlist -->
    <div class="col-3">
-      <p>Qui va la friendlist</p>
       <div *ngFor="let friend of friendList" class="card" style="margin: 5px">
          <div class="nearby-user">
             <div class="row">
@@ -120,23 +128,72 @@
          </div>
          <div class="col-auto">
             <button type="submit" class="btn btn-primary mb-3"
-               (click)="send_friend_request(friendIdTxt.value)">Add</button>
+               (click)="send_friend_request(friendIdTxt.value)">Aggiungi</button>
          </div>
       </form>
    </div>
 </div>
 
-
+<!-- Template used when an user enter in waiting status room -->
 <ng-template #waitingRoom let-modal>
    <div class="modal-header">
-      <h4 class="modal-title" id="modal-basic-title">Searching a new match</h4>
+      <h4 class="modal-title" id="modal-basic-title">Ricerca di una nuova partita</h4>
    </div>
    <div class="modal-body">
-      <p>We are searching an opponent with stats similar to yours. Wait until we find a good opponent!</p>
-      <p>If you want to quit the waiting room just click outside this window or press the "Stop research" button.</p>
+      <p>Stiamo cercando un avversario con delle statistiche simili alle tue. Attendi finché non verrà trovato!</p>
+      <p>Se vuoi uscire dalla ricerca di un avversario, clicca all'esterno di questo box, oppure premi sul tasto "Esci
+         dalla ricerca"</p>
    </div>
    <div class="modal-footer d-grid gap-2">
-      <button type="button" class="btn btn-outline-danger" (click)="modal.dismiss('Stop research')">Stop
-         research</button>
+      <button type="button" class="btn btn-outline-danger" (click)="modal.dismiss('Stop research')">Esci dalla
+         ricerca</button>
+   </div>
+</ng-template>
+
+<!-- Template used when a moderator want to add a new moderator -->
+<ng-template #newModerator let-modal>
+   <div class="modal-header">
+      <h4 class="modal-title" id="modal-basic-title">Aggiunta nuovo moderatore</h4>
+   </div>
+   <div class="modal-body">
+      <p>Inserisci le informazioni essenziali ed inserisci un nuovo moderatore all'interno dell'applicazione.</p>
+      <div class="form-group">
+         <label for="inputEmail">Email address</label>
+         <input type="email" #mail="ngModel" name="mail" [(ngModel)]="moderatorTemplate.email"
+            pattern="[^@\s]+@[^@\s]+\.[^@\s]+" class="form-control" required id="inputEmail"
+            aria-describedby="emailHelp" placeholder="Enter email">
+      </div>
+
+      <div [hidden]="mail.valid || mail.pristine" class="alert alert-danger">
+         Mail is not valid
+      </div>
+
+      <div class="form-group">
+         <label for="inputUsername">Username</label>
+         <input type="text" #username="ngModel" required name="username" [(ngModel)]="moderatorTemplate.username"
+            class="form-control" id="inputUsername" placeholder="Enter username">
+      </div>
+
+      <div [hidden]="username.valid || username.pristine" class="alert alert-danger">
+         Username is required
+      </div>
+
+      <div class="form-group">
+         <label for="inputPassword">Password</label>
+         <input type="password" #password="ngModel" required name="password" [(ngModel)]="moderatorTemplate.password"
+            class="form-control" id="inputPassword" placeholder="Password">
+      </div>
+
+      <div [hidden]="password.valid || password.pristine" class="alert alert-danger">
+         Password is required
+      </div>
+      <div [ngSwitch]="moderatorMessage" class="mt-3">
+         <div class="alert alert-danger" *ngSwitchCase="'ERROR'">Errore riscontrato mentre veniva creato il nuovo moderatore!</div>
+         <div class="alert alert-success" *ngSwitchCase="'SUCCESS'">Nuovo moderatore creato con successo!</div>
+      </div>
+   </div>
+   <div class="modal-footer">
+      <button type="button" class="btn btn-outline-secondary" (click)="add_new_moderator()">Aggiungi</button>
+      <button type="button" class="btn btn-outline-danger" (click)="modal.dismiss('Stop creating')">Esci</button>
    </div>
 </ng-template>
