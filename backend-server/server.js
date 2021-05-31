@@ -238,6 +238,7 @@ app.post("/register", (req, res, next) => {
         lose: 0,
         draw: 0
     };
+    userData.avatar = "clank"; // TODO: Va rimosso
     if (userIsMod) {
         // In this case the user is a new moderator, so create it inside the database
         // and return his _id. This is useful 
@@ -409,143 +410,112 @@ app.route("/messages").get(auth, function (req, res, next) {
  * add a friend to the list or remove on of them from it.
  * -------------------------------------------------------
  */
-app.route("/friends").get(auth, (req, res, next) => {
-    // Get user id
+app.route("/friends").get(auth, (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
+    // Get user id from the request
     var userId = req.user['id'];
-    // Make a query to MongoDB and retrieve the friendlist using the user's id
-    user.getModel().find({ _id: userId }).then((data) => {
+    try {
+        // Make a query to MongoDB and retrieve the friendlist using the user's id
+        var mongoQuery = yield user.getModel().findById(userId, { _id: 0, friendlist: 1 });
+        // Get the array of id's inside user
+        var userFriendList = mongoQuery['friendlist'];
+        var friendsInformations = [];
+        // Now elaborate the informations, using the id of a friend and adding his username and the avatar
+        for (const index in userFriendList) {
+            var friendInfos = yield user.getModel().findById(userFriendList[index], { _id: 0, username: 1, avatar: 1 });
+            friendsInformations.push({ _id: userFriendList[index], username: friendInfos["username"], avatar: friendInfos["avatar"] });
+        }
+        console.log("SUCCESS: ".green + "Retrieve user friend list with friends informations!");
+        // Return a response that all is ok and return the array of users
         return res.status(200).json({
             error: false,
-            friends: data[0]['friendlist']
+            friends: friendsInformations
         });
-    }).catch((err) => {
-        return next({
-            statusCode: 404,
-            error: true,
-            message: "DB error: " + err
-        });
-    });
-}).post(auth, (req, res, next) => {
+    }
+    catch (err) {
+        // An error occurred
+        console.log("ERROR: ".red + "An error occurred while getting the informations about user's friends! Error: " + err);
+        return next({ statusCode: 404, error: true, message: "DB error: " + err });
+    }
+})).post(auth, (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
     // If the POST request has a parameters user, this means that server has to send (using socketio) a notification to the other user
     // that he recives a friend request
     if (req.query.user) {
         // Get the friends id from the query params
-        var friendId = req.query.user;
-        console.log(friendId);
-        var response = undefined;
-        // TODO: Check if user has already this user as friend
-        // user.getModel().find({ _id: req.user["id"]}).then((data) => {
-        //    var myArray: Array<any> = data["friendlist"];
-        //    response = myArray.find((elem) => {
-        //       return elem._id = friendId;
-        //    });
-        // }).catch((err: any) => {
-        //    return next({
-        //       statusCode: 400,
-        //       error: true,
-        //       message: "DB error: " + err
-        //    });
-        // })
-        if (response) {
-            return res.status(200).json({
-                message: "This user is already your friend!"
-            });
+        var friendId = req.query.us;
+        try {
+            // Check if the user is already friend with other user, checking if inside friendlist array the friend id is present
+            var checkFriends = yield user.getModel().findById(req.user["id"], { _id: 0, friendlist: 1 });
+            // Check if the response is not undefined. This means that the other user id is already inside user friend list
+            if (checkFriends["friendlist"].indexOf(friendId) !== -1) {
+                return res.status(200).json({ error: false, code: "ALREADY_FRIEND", message: "This user is already your friend!" });
+            }
+        }
+        catch (err) {
+            // An error occurred
+            console.log("ERROR: ".red + "An error occurred while checking if the id is already part of the user friendlist! Error: " + err);
+            return next({ statusCode: 400, error: true, message: "DB error: " + err });
         }
         // Use socket.io to send a notification to the client
         ios.emit("friendreq_" + friendId, {
             username: req.user["username"],
             id: req.user["id"]
         });
-        // return code 200
-        return res.status(200).json({
-            message: "Send friend request to other player!"
-        });
+        // return code 200, all ok!
+        return res.status(200).json({ error: false, code: "SEND_FRIEND_REQUEST", message: "Send friend request to other player!" });
     }
     else {
         // This part of code is used when an user confirm or deny the friend request. So first of all, to avoid erros, check if the request body
-        // has the correct values (username, id and status)
+        // has the correct values (id and status)
         var reqBody = req.body;
-        console.log(reqBody);
         if (reqBody != undefined && reqBody.user != undefined && reqBody.status != undefined) {
             // User accept the friend request so add both user to corrispective friendlist
             if (reqBody.status == "ACCEPT") {
-                // Create the template to add an user to friendlist
-                var addUser = {
-                    username: reqBody.user.username,
-                    _id: reqBody.user.id
-                };
-                // Add to user the friend
-                user.getModel().updateOne({ _id: req.user["id"] }, { $push: { friendlist: addUser } }).then(() => {
-                    console.log("SUCCESS: ".green + "Added a new friend to: " + req.user["id"]);
-                }).catch((err) => {
-                    return next({
-                        statusCode: 400,
-                        error: true,
-                        message: "DB error: " + err
-                    });
-                });
-                addUser.username = req.user["username"];
-                addUser._id = req.user["id"];
-                // Now add to friend the user
-                user.getModel().updateOne({ _id: reqBody.user.id }, { $push: { friendlist: addUser } }).then(() => {
-                    console.log("SUCCESS: ".green + "Added a new friend to: " + reqBody.user.id);
-                }).catch((err) => {
-                    return next({
-                        statusCode: 400,
-                        error: true,
-                        message: "DB error: " + err
-                    });
-                });
+                // Get the id of the friend
+                var newFriendId = reqBody.user.id;
+                try {
+                    // Push the friend id inside user friend list
+                    yield user.getModel().findByIdAndUpdate(req.user["id"], { $push: { friendlist: newFriendId } });
+                    // Push the user id inside other user friend list
+                    yield user.getModel().findByIdAndUpdate(newFriendId, { $push: { friendlist: req.user["id"] } });
+                }
+                catch (err) {
+                    // An error occurred
+                    return next({ statusCode: 400, error: true, message: "DB error: " + err });
+                }
                 // At the end just send a notification using socketio that the operation is made
                 ios.emit("addfriend_" + reqBody.user.id);
                 ios.emit("addfriend_" + req.user["id"]);
+                return res.status(200).json({ error: false, code: "FRIEND_REQ_ACCEPT", message: "Added a new user to your friendlist!" });
             }
-            return res.status(200).json({
-                message: "Added a new user to your friendlist!"
-            });
+            else {
+                return res.status(200).json({ error: false, code: "FRIEND_REQ_DENY", message: "Other user refuse to accept your friend request!" });
+            }
         }
     }
-    return next({
-        statusCode: 400,
-        error: true,
-        message: "An error occurred during the friends request phase!"
-    });
-}).delete(auth, (req, res, next) => {
+    // No infos passed on body so error
+    return next({ statusCode: 400, error: true, message: "An error occurred during the friends request phase!" });
+})).delete(auth, (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
     // Check if inside the paramaters there is one called user
     if (req.query.user) {
         var otherUserId = req.query.user;
-        // Remove the friend from user friendlist in mongoDB document
-        user.getModel().updateOne({ _id: req.user["id"] }, { $pull: { friendlist: { _id: otherUserId } } }).then((data) => {
-            console.log("SUCCESS: ".green + "Delete user: " + otherUserId + " from user: " + req.user["id"] + " friend list! ");
-        }).catch((err) => {
-            return next({
-                statusCode: 400,
-                error: true,
-                message: "DB error: " + err
-            });
-        });
-        // Remove the user from friend friendlist in mongoDB document
-        user.getModel().updateOne({ _id: otherUserId }, { $pull: { friendlist: { _id: req.user["id"] } } }).then((data) => {
+        try {
+            // Remove other id from user friend list
+            yield user.getModel().findByIdAndUpdate(req.user["id"], { $pull: { friendlist: otherUserId } });
             console.log("SUCCESS: ".green + "Delete user: " + req.user["id"] + " from user: " + otherUserId + " friend list! ");
-        }).catch((err) => {
-            return next({
-                statusCode: 400,
-                error: true,
-                message: "DB error: " + err
-            });
-        });
+            // Remove user id from other user friend list
+            yield user.getModel().findByIdAndUpdate(otherUserId, { $pull: { friendlist: req.user["id"] } });
+        }
+        catch (err) {
+            // An error occurred
+            console.log("ERROR: ".red + "An error occurred while removing a friend from user friend list! Error: " + err);
+            return next({ statusCode: 400, error: true, message: "DB error: " + err });
+        }
         // Both call to mongoDB was successfull so just return a 200 code that everything goes well
-        return res.status(200).json({
-            message: "User removed from friend list"
-        });
+        return res.status(200).json({ errror: false, code: "REMOVE_FRIEND", message: "User removed from friend list" });
     }
     // User doesn't pass a paramaters in query called user so return an error
-    return next({
-        statusCode: 400,
-        error: true,
-        message: "An error occurred while deleting a friend from friend list!"
-    });
-});
+    return next({ statusCode: 400, error: true, message: "An error occurred while deleting a friend from friend list!" });
+}));
 /**
  * -------------------------------------------------------
  *                         GAME
@@ -829,21 +799,25 @@ app.route("/users").get(auth, (req, res, next) => __awaiter(void 0, void 0, void
     if (userInfo != undefined) {
         // Just check the informations are avaible and the user is a moderator
         if (user.is_moderator(userInfo["roles"])) {
-            user.getModel().find({ _id: { $ne: userInfo["id"] } }, { _id: 1, username: 1, email: 1, stats: 1 }).then((data) => {
+            try {
+                // Get all the users except this one
+                var allUsers = yield user.getModel().find({ _id: { $ne: userInfo["id"] } }, { _id: 1, username: 1, email: 1, stats: 1 });
                 console.log("SUCCESS: ".green + "Retrieve the list of the users present inside database!");
-                return res.status(200).json(data);
-            }, (err) => {
+                // return an array containing all the users
+                return res.status(200).json(allUsers);
+            }
+            catch (err) {
                 // An error occurred
                 console.log("ERROR: ".red + "An error occurred while getting the list of the users. Error: " + err);
                 return next({ statusCode: 400, error: true, message: "DB error: " + err });
-            });
+            }
         }
         else {
             // Try to get the friendlist array of an user
             var list = [];
             try {
-                var result = yield user.getModel().find({ _id: userInfo["id"] }, { friendlist: 1, _id: 0 });
-                list = result[0]["friendlist"];
+                var result = yield user.getModel().findById(userInfo["id"], { friendlist: 1, _id: 0 });
+                list = result["friendlist"];
             }
             catch (err) { // An error occurred
                 console.log("ERROR: ".red + "An error occurred while retrieving the friendlist. Error: " + err);
@@ -853,17 +827,18 @@ app.route("/users").get(auth, (req, res, next) => __awaiter(void 0, void 0, void
             var friendArray = [];
             for (var i = 0; i < list.length; i++) {
                 try {
-                    var stats = yield user.getModel().find({ _id: list[i]["_id"] }, { stats: 1, _id: 0 });
+                    var currentUser = yield user.getModel().findById(list[i]["_id"], { stats: 1, username: 1, avatar: 1, _id: 0 });
                     // Create a new map, avoid the fact that on get method, errors are present.
                     // In fact, the get method is used on a Map that get the values inside
                     friendArray.push({
                         _id: list[i]["_id"],
-                        username: list[i]["username"],
+                        username: currentUser["username"],
+                        avatar: currentUser["avatar"],
                         stats: {
-                            game: stats[0]["stats"].get("games"),
-                            win: stats[0]["stats"].get("win"),
-                            lose: stats[0]["stats"].get("lose"),
-                            draw: stats[0]["stats"].get("draw")
+                            game: currentUser["stats"].get("games"),
+                            win: currentUser["stats"].get("win"),
+                            lose: currentUser["stats"].get("lose"),
+                            draw: currentUser["stats"].get("draw")
                         }
                     });
                 }
@@ -872,8 +847,8 @@ app.route("/users").get(auth, (req, res, next) => __awaiter(void 0, void 0, void
                     return next({ statusCode: 400, error: true, message: "DB error: " + err });
                 }
             }
-            console.log("SUCCESS: ".green + "Retrieve the informations about friend list!");
             // return the array of friends updated with stats
+            console.log("SUCCESS: ".green + "Retrieve the informations about friend list!");
             return res.status(200).json(friendArray);
         }
     }
@@ -938,7 +913,8 @@ mongoose.connect('mongodb://localhost:27017/connectfour').then(() => {
                 draw: 0
             },
             friendlist: [],
-            isOnline: false
+            isOnline: false,
+            avatar: "clank"
         });
         firstUser.setPassword("admin");
         console.log(firstUser);

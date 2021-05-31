@@ -37,13 +37,14 @@ var userSchema = new mongoose.Schema({
         of: mongoose.SchemaTypes.Number
     },
     friendlist: {
-        type: [{
-                username: mongoose.SchemaTypes.String,
-                _id: mongoose.SchemaTypes.ObjectId
-            }]
+        type: [mongoose.SchemaTypes.ObjectId]
     },
     isOnline: {
         type: mongoose.SchemaTypes.Boolean,
+        required: false
+    },
+    avatar: {
+        type: mongoose.SchemaTypes.String,
         required: false
     }
 });

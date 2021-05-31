@@ -35,8 +35,9 @@ export interface User extends mongoose.Document {
       lose: number,
       draw: number
    },
-   friendslist: []      // list of friends. This array contains the friends' ids.
-   isOnline: boolean    // flag useful to friends to see if you're online or not
+   friendslist: [],     // list of friends. This array contains the friends' ids.
+   isOnline: boolean,   // flag useful to friends to see if you're online or not.
+   avatar: string,
    setPassword: (password: string) => void,
    validatePassword: (password: string) => boolean
 }
@@ -70,13 +71,14 @@ var userSchema = new mongoose.Schema({
       of: mongoose.SchemaTypes.Number
    },
    friendlist: {
-      type: [{
-         username: mongoose.SchemaTypes.String,
-         _id: mongoose.SchemaTypes.ObjectId
-      }]
+      type: [mongoose.SchemaTypes.ObjectId]
    },
    isOnline: {
       type: mongoose.SchemaTypes.Boolean,
+      required: false
+   },
+   avatar: {
+      type: mongoose.SchemaTypes.String,
       required: false
    }
 });
@@ -163,6 +165,6 @@ export function newUser(data: Object): User {
  * @returns 
  */
 export function is_moderator(roles: any): boolean {
-   if(roles.mod !== undefined && roles.mod.isEnabled == true) return true;
+   if (roles.mod !== undefined && roles.mod.isEnabled == true) return true;
    return false;
 }
