@@ -18,9 +18,8 @@ export class UserProfileComponent implements OnInit {
       // Use user service to make an http request to the server, asking to retrieve the informations about him self
       this.user.get_profile().subscribe((data: any) => {
 
-         console.log("Retrieved the user profile");
-         this.userInformations = data;
-         console.log(data);
+         console.log("Retrieve user profile");
+         this.userInformations = data["informations"];
 
       }, (err) => {
          // An error occurred while retrieving the error, check if the JWT is the error or not

@@ -24,6 +24,7 @@ export class UserListComponent implements OnInit {
       // Otherwise, retrieve the his friendlist and the stats about them
       this.user.get_user_list().subscribe((data) => {
          // Get the list of users. (It can be empty)
+         console.log(data);
          this.userList = data;
       }, (err) => {
          // An error occurred

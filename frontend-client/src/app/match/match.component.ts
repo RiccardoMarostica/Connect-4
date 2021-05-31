@@ -39,36 +39,34 @@ export class MatchComponent implements OnInit {
 
          // Call the match service that will make a GET request to the server. Then handle the observable
          this.match.get_match_data(param).subscribe((data) => {
-            this.matchInfos = data;
+
+            // To avoid every problem, example when user reload the page, just check if isOver is equals to true
+            if (data.matchInfos !== undefined && data.matchInfos.isOver == true) {
+               // Check if the socket pass a string containing the winner id;
+               if (data.winner != "DRAW") {
+                  this.winnerPlayer = (data.winner == this.user.get_user_id()) ? "WIN" : "LOSE"; // Set if user win or lose
+               } else {
+                  this.winnerPlayer = data; // Here just set undefined (game is not over) or a draw
+               }
+               this.matchInfos = data.matchInfos;
+            } else { // Otherwise the match is not end so just take the match infos
+               this.matchInfos = data;
+            }
 
             // Filter the array of messages
             this.matchInfos.messages = this.controlMessageList(this.matchInfos.messages);
 
-            // Check if current user is playing or not. If true check it
-            var userId = this.user.get_user_id();
-            var checkUserPlaying = this.matchInfos.participants.find((elem: any) => elem._id == userId); // Check if id of current user is inside participants
+            // Check if id of current user is inside participants
+            var checkUserPlaying = this.matchInfos.participants.find((elem: any) => elem._id == this.user.get_user_id());
             // if true, just update the flag and set the disk colour
             if (checkUserPlaying !== undefined) {
                this.isUserPlaying = true; // Update flag that user is playing
                this.diskColour = checkUserPlaying.colour;
             }
 
-            // To avoid every problem, example when user reload the page, just check if isOver is equals to true
-            if (this.matchInfos.isOver == true) {
-               this.winnerPlayer = "RELOAD"; // TODO, gestire questa cosa
-            }
-
             // Socket that update the matchInfo var every time there is a new move or a new message
             this.socket.listen("match_update_" + this.matchInfos["_id"]).subscribe((data: string) => {
                this.getMatchInfo(this.matchInfos["_id"]); // Get the infos from the server
-
-               // Check if the socket pass a string containing the winner id;
-               if (data != undefined && data != "DRAW") {
-                  this.winnerPlayer = (data == this.user.get_user_id()) ? "WIN" : "LOSE"; // Set if user win or lose
-               } else {
-                  this.winnerPlayer = data; // Here just set undefined (game is not over) or a draw
-               }
-
             }, (err) => { // Error case when listening an websocket event
                console.log("Error while retrieving the informations from the server!");
                console.log("ERROR: " + JSON.stringify(err));
@@ -94,7 +92,18 @@ export class MatchComponent implements OnInit {
    getMatchInfo(param: any): void {
       // Call the match service that will make a GET request to the server. Then handle the observable
       this.match.get_match_data(param).subscribe((data) => {
-         this.matchInfos = data; // Save the data in a local field
+         // if data contains that is over is true, so just check the winner
+         if (data.matchInfos !== undefined && data.matchInfos.isOver == true) {
+            // Check if the socket pass a string containing the winner id;
+            if (data.winner != "DRAW") {
+               this.winnerPlayer = (data.winner == this.user.get_user_id()) ? "WIN" : "LOSE"; // Set if user win or lose
+            } else {
+               this.winnerPlayer = data; // Here just set undefined (game is not over) or a draw
+            }
+            this.matchInfos = data.matchInfos;
+         } else {
+            this.matchInfos = data; // Save the data in a local field
+         }
 
          // Update the message list based if the user is playing or watching
          this.matchInfos.messages = this.controlMessageList(this.matchInfos.messages);
@@ -142,7 +151,7 @@ export class MatchComponent implements OnInit {
             console.log("It's your turn! You want to add a disk inside the: " + (colIndex + 1) + " column");
 
             // Now just update the grid putting the disk in the correct space
-            for (var i = this.matchInfos.grid.length - 1; i > 0; i--) {
+            for (var i = this.matchInfos.grid.length - 1; i >= 0; i--) {
                // Check in which row the disk can be inserted inside the specific column
                if (this.matchInfos.grid[i][colIndex] == "EMPTY") {
                   this.matchInfos.grid[i][colIndex] = this.diskColour;

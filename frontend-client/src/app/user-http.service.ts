@@ -27,7 +27,7 @@ export class UserHttpService {
       }
    }
 
-   login(mail: string, password: string, remember: boolean): Observable<any> {
+   login(mail: string, password: string): Observable<any> {
 
       console.log("Making login");
 
@@ -44,14 +44,7 @@ export class UserHttpService {
        * Inside the body it isn't necessary put something but it is important to specify
        * the options because we're sending the headers option in the request.
        */
-      return this.http.post(this.url + "/login", "", options).pipe(
-         // combine multiple functions into a single function, that executes them in sequence    
-         tap((data: any) => {
-            console.log("DATA: " + JSON.stringify(data));
-            this.token = data['token'];
-            if (remember) localStorage.setItem('server_token', this.token);
-         })
-      )
+      return this.http.post(this.url + "/login", "", options);
    }
 
    registration(user: any): Observable<any> {
@@ -255,6 +248,10 @@ export class UserHttpService {
             'Content-Type': 'application/json',
          })
       })
+   }
+
+   set_token(token: any): void {
+      this.token = token;
    }
 
    /**

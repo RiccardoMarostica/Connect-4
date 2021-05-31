@@ -208,19 +208,16 @@ app.post("/login", passport.authenticate('basic', { session: false }), (req, res
     // This means that user has been injected int req.user from the previous function
     // So generate a JWT with useful informations and return it as response
     console.log("SUCCESS: ".green + "Login granted. Generating JWT token");
-    var token = {
-        username: req.user["username"],
-        email: req.user["email"],
-        id: req.user["id"],
-        roles: req.user["roles"]
-    };
+    var checkUser = req.user;
+    // Check if the user is a new moderator
+    if (checkUser.roles != undefined && checkUser.roles.get("mod") != undefined && checkUser.roles.get("mod").isEnabled == false) {
+        return res.status(200).json({ error: false, newAdmin: true, userid: checkUser._id });
+    }
+    // Create the token with useful informations
+    var token = { username: req.user["username"], email: req.user["email"], id: req.user["id"], roles: req.user["roles"] };
     // Now sign the token
     var token_signed = jsonwebtoken.sign(token, process.env.JWT_SECRET, { expiresIn: '1h' });
-    return res.status(200).json({
-        error: false,
-        token: token_signed,
-        message: "Login granted"
-    });
+    return res.status(200).json({ error: false, token: token_signed, message: "Login granted" });
 });
 /**
  * Handle the registration router.
@@ -231,19 +228,20 @@ app.post("/register", (req, res, next) => {
     console.log("REQUEST: ".yellow + "Creating a new user");
     var userIsMod = req.body.newMod;
     var userData = req.body.user;
-    // Add the stats to user, don't care if is normal or he is a moderator
-    userData.stats = {
-        games: 0,
-        win: 0,
-        lose: 0,
-        draw: 0
-    };
-    userData.avatar = "clank"; // TODO: Va rimosso
     if (userIsMod) {
-        // In this case the user is a new moderator, so create it inside the database
-        // and return his _id. This is useful 
+        // In this case the user is a new moderator, so update it inside the database
+        // Update infos and log in
+        var adminId = req.body.adminId;
+        // TODO: Remove it and create a new user
     }
     else {
+        // Add the stats to user
+        userData.stats = {
+            games: 0,
+            win: 0,
+            lose: 0,
+            draw: 0
+        };
         // This user is a normal user so he hasn't any roles.
         // It is necessary to crate him, add it inside mongoDB and
         // return a response that contain the JWT (status: 200)
@@ -441,7 +439,7 @@ app.route("/friends").get(auth, (req, res, next) => __awaiter(void 0, void 0, vo
     // that he recives a friend request
     if (req.query.user) {
         // Get the friends id from the query params
-        var friendId = req.query.us;
+        var friendId = req.query.user;
         try {
             // Check if the user is already friend with other user, checking if inside friendlist array the friend id is present
             var checkFriends = yield user.getModel().findById(req.user["id"], { _id: 0, friendlist: 1 });
@@ -455,13 +453,22 @@ app.route("/friends").get(auth, (req, res, next) => __awaiter(void 0, void 0, vo
             console.log("ERROR: ".red + "An error occurred while checking if the id is already part of the user friendlist! Error: " + err);
             return next({ statusCode: 400, error: true, message: "DB error: " + err });
         }
-        // Use socket.io to send a notification to the client
-        ios.emit("friendreq_" + friendId, {
-            username: req.user["username"],
-            id: req.user["id"]
-        });
-        // return code 200, all ok!
-        return res.status(200).json({ error: false, code: "SEND_FRIEND_REQUEST", message: "Send friend request to other player!" });
+        try {
+            var otherUser = yield user.getModel().findById(friendId, { username: 1, avatar: 1, _id: 0 });
+            // Use socket.io to send a notification to the client
+            ios.emit("friendreq_" + friendId, {
+                username: otherUser["username"],
+                avatar: otherUser["avatar"],
+                id: req.user["id"]
+            });
+            // return code 200, all ok!
+            return res.status(200).json({ error: false, code: "SEND_FRIEND_REQUEST", message: "Send friend request to other player!" });
+        }
+        catch (err) {
+            // An error occurred
+            console.log("ERROR: ".red + "An error occurred while getting other user informations! Error: " + err);
+            return next({ statusCode: 400, error: true, message: "DB error: " + err });
+        }
     }
     else {
         // This part of code is used when an user confirm or deny the friend request. So first of all, to avoid erros, check if the request body
@@ -524,18 +531,40 @@ app.route("/friends").get(auth, (req, res, next) => __awaiter(void 0, void 0, vo
  *
  * -------------------------------------------------------
  */
-app.route("/game").get(auth, (req, res, next) => {
+app.route("/game").get(auth, (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
     // The match param inside query is used to memorize which match user wants to knwo more informations
     // Useful for a participant and for a player who is only watching the game
     if (req.query.match) {
         var matchId = req.query.match; // Get the match id from the query
-        // Now try to get the data from the database
-        match.getModel().find({ _id: matchId }).then((data) => {
+        try {
+            // Get match informations
+            var matchInfos = yield match.getModel().findById(matchId);
             console.log("SUCCESS: ".green + "Retrieve match infos from the server and return it as response!");
-            return res.status(200).json(data[0]);
-        }, (err) => {
-            return next({ statusCode: 400, error: true, message: "DB errror: " + err });
-        });
+            // Check if the match is over. If true, just check who wins
+            if (matchInfos.isOver == true) {
+                var matchResult = match.getWinner(matchInfos.grid);
+                var winnerId;
+                var participants = yield match.getModel().findById(req.query.match, { participants: 1 });
+                // Check the winner if the match isn't over in a draw
+                if (matchResult !== "DRAW") {
+                    var result = participants["participants"];
+                    winnerId = result.find(elem => elem["colour"] == matchResult)["_id"];
+                }
+                else { // Otherwise, draw is the result
+                    winnerId = "DRAW";
+                }
+                return res.status(200).json({ winner: winnerId, matchInfos: matchInfos });
+            }
+            else {
+                // Otherwise match is not over, so just return the informations
+                return res.status(200).json(matchInfos);
+            }
+        }
+        catch (err) {
+            // An error occurred
+            console.log("ERROR: ".red + "An error occurred while getting match informations! Error: " + err);
+            return next({ statusCode: 400, error: true, message: "DB error: " + err });
+        }
     }
     else { // There is no query parameters, so in this case just provide all the matches that arent' over
         match.getModel().find({ isOver: false }, { _id: 1, timestamp: 1 }).sort({ timestamp: -1 }).then((data) => {
@@ -546,7 +575,7 @@ app.route("/game").get(auth, (req, res, next) => {
             return next({ statusCode: 400, error: true, message: "DB error: " + err });
         });
     }
-}).post(auth, (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
+})).post(auth, (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
     // When make a post call first of all check if user can make the moves checking the turn on db
     var requestBody = req.body;
     // Check if inside the body there is the match id
@@ -582,11 +611,7 @@ app.route("/game").get(auth, (req, res, next) => {
             var participants = yield match.getModel().find({ _id: req.query.match }, { participants: 1 });
             // Check if the participants are avaible
             if (participants.length === 0) {
-                return next({
-                    statusCode: 400,
-                    error: true,
-                    message: "Unable to retrieve the participants"
-                });
+                return next({ statusCode: 400, error: true, message: "Unable to retrieve the participants" });
             }
             // Check the winner if the match isn't over in a draw
             if (matchResult !== "DRAW") {
@@ -607,16 +632,11 @@ app.route("/game").get(auth, (req, res, next) => {
                 ios.emit("match_update_" + req.query.match, winnerId); // Just emit e match update to the sockets connected and pass the winner id
             }, (err) => {
                 console.log("ERROR: ".red + "An error has occurred while updating and closing the match! Error: " + err);
-                return next({
-                    statusCoode: 400,
-                    error: true,
-                    message: "DB error: " + err
-                });
+                return next({ statusCoode: 400, error: true, message: "DB error: " + err });
             });
             // Pass each user of the participants and update his stats based if he win, lose or draw.
             var getParticipants = participants[0]["participants"];
             getParticipants.forEach(elem => {
-                console.log(elem);
                 if (winnerId == "draw") { // Match is a draw, so just update the draw stats
                     user.getModel().updateOne({ _id: elem["_id"] }, { $inc: { "stats.draw": 1, "stats.games": 1 } }).then(() => {
                         console.log("SUCCESS: ".green + "Update user stats");
@@ -643,31 +663,24 @@ app.route("/game").get(auth, (req, res, next) => {
                 }
             });
             // Return a status code 200 cause everything goes well, updating all the stats and the match
-            return res.status(200).json({
-                error: false,
-                message: "Match updated, participants updated and match is over!"
-            });
+            return res.status(200).json({ error: false, message: "Match updated, participants updated and match is over!" });
         }
     }
     else {
         // Return an error
-        return next({
-            statusCode: 500,
-            error: true,
-            message: "Unable to find a suitable handler!"
-        });
+        return next({ statusCode: 500, error: true, message: "Unable to find a suitable handler!" });
     }
 }));
 app.route("/game/create").get(auth, (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
     // In this case, an user ask to his friend to play a game.
     if (req.query.user && !req.query.status) {
-        var stats = yield user.getModel().find({ _id: req.user["id"] }, { _id: 0, stats: 1 });
-        console.log("TEST: ".gray + JSON.stringify(stats[0].stats));
+        var opponentInfo = yield user.getModel().findById(req.user["id"], { _id: 0, stats: 1, avatar: 1 });
         // Create a socket used to send a request to other player
         ios.emit("game_request_" + req.query.user, {
             _id: req.user["id"],
             username: req.user["username"],
-            stats: stats[0].stats
+            stats: opponentInfo.stats,
+            avatar: opponentInfo.avatar
         });
         return res.status(200).json({
             error: false,
@@ -736,8 +749,8 @@ app.route("/game/create").get(auth, (req, res, next) => __awaiter(void 0, void 0
  */
 app.route("/user").get(auth, (req, res, next) => {
     var userId = req.user["id"];
-    user.getModel().find({ _id: userId }, { stats: 1, _id: 1, username: 1, email: 1 }).then((data) => {
-        return res.status(200).json(data[0]);
+    user.getModel().findById(userId, { stats: 1, _id: 1, username: 1, email: 1, avatar: 1 }).then((data) => {
+        return res.status(200).json({ error: false, informations: data });
     }, (err) => {
         console.log("ERROR: ".red + "An error occurred while getting the stats of the player. Error: " + err);
         return next({ statusCode: 400, error: true, message: "DB error: " + err });
@@ -801,7 +814,7 @@ app.route("/users").get(auth, (req, res, next) => __awaiter(void 0, void 0, void
         if (user.is_moderator(userInfo["roles"])) {
             try {
                 // Get all the users except this one
-                var allUsers = yield user.getModel().find({ _id: { $ne: userInfo["id"] } }, { _id: 1, username: 1, email: 1, stats: 1 });
+                var allUsers = yield user.getModel().find({ _id: { $ne: userInfo["id"] } }, { _id: 1, username: 1, email: 1, stats: 1, avatar: 1 });
                 console.log("SUCCESS: ".green + "Retrieve the list of the users present inside database!");
                 // return an array containing all the users
                 return res.status(200).json(allUsers);
@@ -914,10 +927,9 @@ mongoose.connect('mongodb://localhost:27017/connectfour').then(() => {
             },
             friendlist: [],
             isOnline: false,
-            avatar: "clank"
+            avatar: "man-1"
         });
         firstUser.setPassword("admin");
-        console.log(firstUser);
         return firstUser.save(); // Save the new user inside MongoDB and return this promises
     }
     else {

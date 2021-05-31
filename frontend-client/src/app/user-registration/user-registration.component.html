@@ -16,7 +16,7 @@
       </div>
 
       <div [hidden]="mail.valid || mail.pristine" class="alert alert-danger">
-         Mail is not valid
+         La mail non è valida
       </div>
 
       <div class="form-group">
@@ -26,7 +26,7 @@
       </div>
 
       <div [hidden]="username.valid || username.pristine" class="alert alert-danger">
-         Username is required
+         Lo username è richiesto
       </div>
 
       <div class="form-group">
@@ -36,7 +36,25 @@
       </div>
 
       <div [hidden]="password.valid || password.pristine" class="alert alert-danger">
-         Password is required
+         La password è richiesta
+      </div>
+
+      <div class="form-group mt-4">
+         <label for="inputEmail">Seleaziona il tuo avatar</label>
+         <div class="row text-center">
+            <div class="col-md-3 col-sm-3 py-2" (click)="setAvatar('man-1')">
+               <img src="../../assets/man-1.png" width="80px" height="80px" alt="user" class="profile-photo-sm">
+            </div>
+            <div class="col-md-3 col-sm-3 py-2" (click)="setAvatar('woman-1')">
+               <img src="../../assets/woman-1.png" width="80px" height="80px" alt="user" class="profile-photo-lg">
+            </div>
+            <div class="col-md-3 col-sm-3 py-2" (click)="setAvatar('man-2')">
+               <img src="../../assets/man-2.png" width="80px" height="80px" alt="user" class="profile-photo-lg">
+            </div>
+            <div class="col-md-3 col-sm-3 py-2" (click)="setAvatar('woman-2')">
+               <img src="../../assets/woman-2.png" width="80px" height="80px" alt="user" class="profile-photo-lg">
+            </div>
+         </div>
       </div>
 
       <div *ngIf="errorMessage" class="alert alert-danger" role="alert">
@@ -47,7 +65,7 @@
       <div class="row text-center">
          <div class="col-12 d-grid gap-2 my-3">
             <button class="btn btn-lg btn-primary btn-block"
-               [disabled]=" !mail.valid || !password.valid || !username.valid" (click)="signup();">Sign up</button>
+               [disabled]=" !mail.valid || !password.valid || !username.valid || !user.avatar" (click)="signup();">Sign up</button>
          </div>
       </div>
 

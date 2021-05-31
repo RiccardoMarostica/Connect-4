@@ -30,10 +30,18 @@
 
 
 <!-- Template used when an user receive a friend request -->
-<div class="container">
-   <div class="alert text-center" *ngIf="friendRequest">
+<div class="container mt-4" *ngIf="friendRequest">
+   <div class="alert text-center">
       <h3>Nuova richiesta amico:</h3>
-      <p>Username: {{friendRequest.username}}<br>ID: {{friendRequest.id}}</p>
+      <div class="row justify-content-center">
+         <div class="col-md-1 col-sm-1 py-2">
+            <img src="../../assets/{{friendRequest.avatar}}.png" alt="user" class="profile-photo-lg">
+         </div>
+         <div class="col-md-3 col-sm-3 py-2">
+            <p>Username: {{friendRequest.username}}</p>
+            <p class="text-secondary">ID: {{friendRequest.id}}</p>
+         </div>
+      </div>
       <div class="row justify-content-center">
          <div class="col-5">
             <button type="button" class="btn btn-success btn-lg"
@@ -48,26 +56,33 @@
 </div>
 
 <!-- Template used when a game request from a friend arrives to the user -->
-<div class="container">
-   <div class="alert text-center" *ngIf="friendGameRequest">
+<div class="container" *ngIf="friendGameRequest">
+   <div class="alert text-center">
       <h3>Richiesta creazione nuova partita contro:</h3>
-      <p>Username: {{friendGameRequest.username}}</p>
-      <p class="text-secondary">Identifier: <i>{{friendGameRequest._id}}</i></p>
+      <div class="row justify-content-center">
+         <div class="col-md-1 col-sm-1 py-2">
+            <img src="../../assets/{{friendGameRequest.avatar}}.png" alt="user" class="profile-photo-lg">
+         </div>
+         <div class="col-md-3 col-sm-3 py-2">
+            <p>Username: {{friendGameRequest.username}}</p>
+            <p class="text-secondary">ID: {{friendGameRequest._id}}</p>
+         </div>
+      </div>
       <div class="row justify-content-center">
          <div class="col-sm-12 text-center mb-2">
-            <h6 class="mb-0">Statistics</h6>
-            <p class="text-secondary"><i>in {{friendGameRequest.stats.games}} games</i></p>
+            <h6 class="mb-0">Statistiche</h6>
+            <p class="text-secondary"><i>in {{friendGameRequest.stats.games}} partite</i></p>
          </div>
          <div class="col-sm-2 text-center">
-            <h6>Win:</h6>
+            <h6>Vittorie:</h6>
             <p class="text-secondary">{{friendGameRequest.stats.win}}</p>
          </div>
          <div class="col-sm-2 text-center">
-            <h6>Draw:</h6>
+            <h6>Pareggi:</h6>
             <p class="text-secondary">{{friendGameRequest.stats.draw}}</p>
          </div>
          <div class="col-sm-2 text-center">
-            <h6>Lose:</h6>
+            <h6>Sconfitte:</h6>
             <p class="text-secondary">{{friendGameRequest.stats.lose}}</p>
          </div>
       </div>
@@ -98,7 +113,7 @@
          <div class="nearby-user">
             <div class="row">
                <div class="col-md-3 col-sm-3 py-2">
-                  <img src="https://bootdey.com/img/Content/avatar/avatar7.png" alt="user" class="profile-photo-lg">
+                  <img src="../../assets/{{friend.avatar}}.png" alt="user" class="profile-photo-lg">
                </div>
                <div class="col-md-9 col-sm-9 py-2">
                   <h5>{{friend.username}}</h5>
@@ -165,7 +180,7 @@
       </div>
 
       <div [hidden]="mail.valid || mail.pristine" class="alert alert-danger">
-         Mail is not valid
+         La mail non è valida
       </div>
 
       <div class="form-group">
@@ -175,7 +190,7 @@
       </div>
 
       <div [hidden]="username.valid || username.pristine" class="alert alert-danger">
-         Username is required
+         Lo username è richiesto
       </div>
 
       <div class="form-group">
@@ -185,15 +200,37 @@
       </div>
 
       <div [hidden]="password.valid || password.pristine" class="alert alert-danger">
-         Password is required
+         La password è richiesta
       </div>
+
+      <div class="form-group mt-4">
+         <label for="inputEmail">Seleaziona il tuo avatar</label>
+         <div class="row text-center">
+            <div class="col-md-3 col-sm-3 py-2" (click)="moderatorTemplate.avatar = 'man-1'">
+               <img src="../../assets/man-1.png" width="80px" height="80px" alt="user" class="profile-photo-sm">
+            </div>
+            <div class="col-md-3 col-sm-3 py-2" (click)="moderatorTemplate.avatar = 'woman-1'">
+               <img src="../../assets/woman-1.png" width="80px" height="80px" alt="user" class="profile-photo-lg">
+            </div>
+            <div class="col-md-3 col-sm-3 py-2" (click)="moderatorTemplate.avatar = 'man-2'">
+               <img src="../../assets/man-2.png" width="80px" height="80px" alt="user" class="profile-photo-lg">
+            </div>
+            <div class="col-md-3 col-sm-3 py-2" (click)="moderatorTemplate.avatar = 'woman-2'">
+               <img src="../../assets/woman-2.png" width="80px" height="80px" alt="user" class="profile-photo-lg">
+            </div>
+         </div>
+      </div>
+
       <div [ngSwitch]="moderatorMessage" class="mt-3">
-         <div class="alert alert-danger" *ngSwitchCase="'ERROR'">Errore riscontrato mentre veniva creato il nuovo moderatore!</div>
+         <div class="alert alert-danger" *ngSwitchCase="'ERROR'">Errore riscontrato mentre veniva creato il nuovo
+            moderatore!</div>
          <div class="alert alert-success" *ngSwitchCase="'SUCCESS'">Nuovo moderatore creato con successo!</div>
       </div>
    </div>
    <div class="modal-footer">
-      <button type="button" class="btn btn-outline-secondary" (click)="add_new_moderator()">Aggiungi</button>
+      <button type="button" class="btn btn-outline-secondary"
+         [disabled]=" !mail.valid || !password.valid || !username.valid || !moderatorTemplate.avatar"
+         (click)="add_new_moderator()">Aggiungi</button>
       <button type="button" class="btn btn-outline-danger" (click)="modal.dismiss('Stop creating')">Esci</button>
    </div>
 </ng-template>

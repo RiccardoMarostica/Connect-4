@@ -11,27 +11,40 @@ import { Router } from '@angular/router';
  * Insted if the request is successfull redirect the user to the main page of the application..
  */
 @Component({
-  selector: 'app-user-login',
-  templateUrl: './user-login.component.html',
-  styleUrls: ['./user-login.component.css']
+   selector: 'app-user-login',
+   templateUrl: './user-login.component.html',
+   styleUrls: ['./user-login.component.css']
 })
 export class UserLoginComponent implements OnInit {
 
-  public errorMessage: string | undefined = undefined;
+   public errorMessage: string | undefined = undefined;
 
-  constructor( private user : UserHttpService, private router : Router) { }
+   constructor(private user: UserHttpService, private router: Router) { }
 
-  ngOnInit(): void {
-  }
+   ngOnInit(): void {
+   }
 
-  login (mail: string, password: string, remember: boolean) {
-    this.user.login(mail, password, remember).subscribe( (value) => {
-      console.log("SUCCESS: Login granted! Token");
-      this.errorMessage = undefined;
-      this.router.navigate(["/home-page"]);
-    }, (err) => {
-      console.log("ERROR: Login error! Value: " + JSON.stringify(err));
-      this.errorMessage = err.message;
-    });
-  }
+   login(mail: string, password: string, remember: boolean) {
+      this.user.login(mail, password).subscribe((data) => {
+         if (data.newAdmin) { // A response contain a flag newAdmin, so this user has to update his data
+            this.router.navigate(["/registration", data.userid]);
+         } else {
+            // User logged in
+            console.log("DATA: " + JSON.stringify(data));
+
+            // Set the token and in case memorize it inside local storage
+            this.user.set_token(data['token']);
+            if (remember) localStorage.setItem('server_token', this.user.get_token());
+
+            // Then redirect to home page
+            console.log("SUCCESS: Login granted! Token");
+            this.errorMessage = undefined;
+            this.router.navigate(["/home-page"]);
+         }
+
+      }, (err) => {
+         console.log("ERROR: Login error! Value: " + JSON.stringify(err));
+         this.errorMessage = err.message;
+      });
+   }
 }
