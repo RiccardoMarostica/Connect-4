@@ -40,32 +40,34 @@ export class MatchComponent implements OnInit {
          // Call the match service that will make a GET request to the server. Then handle the observable
          this.match.get_match_data(param).subscribe((data) => {
 
-            // To avoid every problem, example when user reload the page, just check if isOver is equals to true
-            if (data.matchInfos !== undefined && data.matchInfos.isOver == true) {
-               // Check if the socket pass a string containing the winner id;
-               if (data.winner != "DRAW") {
-                  this.winnerPlayer = (data.winner == this.user.get_user_id()) ? "WIN" : "LOSE"; // Set if user win or lose
-               } else {
-                  this.winnerPlayer = data; // Here just set undefined (game is not over) or a draw
-               }
-               this.matchInfos = data.matchInfos;
-            } else { // Otherwise the match is not end so just take the match infos
-               this.matchInfos = data;
-            }
-
-            // Filter the array of messages
-            this.matchInfos.messages = this.controlMessageList(this.matchInfos.messages);
+            this.matchInfos = data;
 
             // Check if id of current user is inside participants
             var checkUserPlaying = this.matchInfos.participants.find((elem: any) => elem._id == this.user.get_user_id());
+            console.log(checkUserPlaying);
             // if true, just update the flag and set the disk colour
             if (checkUserPlaying !== undefined) {
                this.isUserPlaying = true; // Update flag that user is playing
                this.diskColour = checkUserPlaying.colour;
             }
 
+            console.log(this.isUserPlaying);
+
+            // Check if the match is over or not. If yes update who wins
+            if (this.matchInfos.isOver == true && (this.matchInfos.winner !== undefined)) {
+               if (this.matchInfos.winner != "DRAW") {
+                  this.winnerPlayer = (this.matchInfos.winner == this.diskColour) ? "WIN" : "LOSE"; // Set if user win or lose
+               } else {
+                  this.winnerPlayer = this.matchInfos.winner; // Here just set undefined (game is not over) or a draw
+               }
+            }
+
+            // Filter the array of messages
+            this.matchInfos.messages = this.controlMessageList(this.matchInfos.messages);
+
+
             // Socket that update the matchInfo var every time there is a new move or a new message
-            this.socket.listen("match_update_" + this.matchInfos["_id"]).subscribe((data: string) => {
+            this.socket.listen("match_update_" + this.matchInfos["_id"]).subscribe(() => {
                this.getMatchInfo(this.matchInfos["_id"]); // Get the infos from the server
             }, (err) => { // Error case when listening an websocket event
                console.log("Error while retrieving the informations from the server!");
@@ -81,6 +83,7 @@ export class MatchComponent implements OnInit {
       }, (err) => {
          // Error case
          console.log("Error while retrieving the match id from the URL!");
+         console.log("ERROR: " + JSON.stringify(err));
          this.router.navigate(["/home-page"]);
       });
    }
@@ -93,16 +96,14 @@ export class MatchComponent implements OnInit {
       // Call the match service that will make a GET request to the server. Then handle the observable
       this.match.get_match_data(param).subscribe((data) => {
          // if data contains that is over is true, so just check the winner
-         if (data.matchInfos !== undefined && data.matchInfos.isOver == true) {
-            // Check if the socket pass a string containing the winner id;
-            if (data.winner != "DRAW") {
-               this.winnerPlayer = (data.winner == this.user.get_user_id()) ? "WIN" : "LOSE"; // Set if user win or lose
+         this.matchInfos = data;
+         // Check if the match is over or not. If yes update who wins
+         if (this.matchInfos.isOver == true && (this.matchInfos.winner !== undefined)) {
+            if (this.matchInfos.winner != "DRAW") {
+               this.winnerPlayer = (this.matchInfos.winner == this.diskColour) ? "WIN" : "LOSE"; // Set if user win or lose
             } else {
-               this.winnerPlayer = data; // Here just set undefined (game is not over) or a draw
+               this.winnerPlayer = this.matchInfos.winner; // Here just set undefined (game is not over) or a draw
             }
-            this.matchInfos = data.matchInfos;
-         } else {
-            this.matchInfos = data; // Save the data in a local field
          }
 
          // Update the message list based if the user is playing or watching
@@ -205,6 +206,10 @@ export class MatchComponent implements OnInit {
    quitMatch(): void {
       if (this.winnerPlayer !== undefined || this.isUserPlaying == false) {
          this.router.navigate(["/home-page"]);
+      } else {
+         this.match.quit_match(this.matchInfos["_id"], this.user.get_user_id()).subscribe((data) => {
+            this.router.navigate(["/home-page"]);
+         });
       }
    }
 }

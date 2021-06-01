@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getWinner = exports.getModel = exports.getSchema = void 0;
+exports.getWinner = exports.updateGrid = exports.getModel = exports.getSchema = void 0;
 /**
  * -------------------------------------------------------
  * MODULES USED TO DEVELOP THE BACKEND OF THE APPLICATION
@@ -41,6 +41,9 @@ var matchSchema = new mongoose.Schema({
         type: mongoose.SchemaTypes.Boolean,
         required: true
     },
+    winner: {
+        type: mongoose.SchemaTypes.String
+    },
     turn: {
         type: mongoose.SchemaTypes.ObjectId,
         required: true
@@ -74,6 +77,13 @@ function getModel() {
     return matchModel;
 }
 exports.getModel = getModel;
+function updateGrid(x, y, grid, colour) {
+    if (grid[x][y] === "EMPTY") {
+        grid[x][y] === colour;
+    }
+    return grid;
+}
+exports.updateGrid = updateGrid;
 /**
  * Function used to control the grid and
  * @param grid

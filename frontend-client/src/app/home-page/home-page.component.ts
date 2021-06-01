@@ -16,7 +16,7 @@ export class HomePageComponent implements OnInit {
    friendRequest: any = undefined; // flag used when an user receive a friend request
    friendGameRequest: any = undefined; // flag used when an user receive a game request froma a friend
 
-   moderatorTemplate = { email: '', password: '', username: '', avatar: '' }; // template of the moderator when a mod wants to add a new one
+   moderatorTemplate = { email: '', password: '', username: '' }; // template of the moderator when a mod wants to add a new one
    moderatorMessage: string | undefined = undefined;
 
    constructor(public user: UserHttpService, public router: Router, private socket: SocketioService, private modalService: NgbModal, private location: LocationStrategy) {

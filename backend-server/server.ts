@@ -44,6 +44,8 @@
  *    /game                   ?game=            GET               Get the informations about a specific game using his id, including the messages
  *    /game/create            ?user=            GET               Create a game with a friend inside user's friendlist. Instead to create a game with waiting state we used socket.io
  *    /game                   ?game=            POST              Make a moves during the game passing where user put the disk, just need x value of the matrix cause then send a notification to opponent showing which moves user made.
+ *    /game                   ?game=            DELETE            Remove a participants from the match selecting a winner
+ *                            ?user=            ---               
  * 
  * ----------------------------------------------------------
  * 
@@ -193,31 +195,17 @@ passport.use(new passportHTTP.BasicStrategy(
 
          // Handle the response and check if user exists or not
          if (err) { // An error occurred during query
-            return done({
-               status: 500,
-               error: true,
-               message: err
-            });
+            return done({ status: 500, error: true, message: err });
          }
          if (!user) { // Error occurred because user is invalid
-            return done(null, false, {
-               statusCode: 500,
-               error: true,
-               message: "Invalid user"
-            })
+            return done(null, false, { statusCode: 500, error: true, message: "Invalid user" });
          }
          if (!user.validatePassword(password)) { // Error occurred because password is wrong
-            return done(null, false, {
-               statusCode: 500,
-               error: true,
-               message: "Invalid password"
-            })
+            return done(null, false, { statusCode: 500, error: true, message: "Invalid password" });
          }
-
          // No error, so return the user
          return done(null, user);
       })
-
    })
 )
 
@@ -231,14 +219,15 @@ app.post("/login", passport.authenticate('basic', { session: false }), (req, res
    // This means that user has been injected int req.user from the previous function
    // So generate a JWT with useful informations and return it as response
 
-   console.log("SUCCESS: ".green + "Login granted. Generating JWT token");
    var checkUser: any = req.user;
 
    // Check if the user is a new moderator
    if (checkUser.roles != undefined && checkUser.roles.get("mod") != undefined && checkUser.roles.get("mod").isEnabled == false) {
+      console.log("SUCCESS: ".green + "First login for new moderator. Redirect him to the registration page!");
       return res.status(200).json({ error: false, newAdmin: true, userid: checkUser._id });
    }
 
+   console.log("SUCCESS: ".green + "Login granted. Generating JWT token");
    // Create the token with useful informations
    var token = { username: req.user["username"], email: req.user["email"], id: req.user["id"], roles: req.user["roles"] }
 
@@ -253,62 +242,58 @@ app.post("/login", passport.authenticate('basic', { session: false }), (req, res
  * Inside current endpoint, the body of the request contains the informations about an user.
  * From that create an user but before check if all infos are present inside the request otherwise return an error (404)
  */
-app.post("/register", (req, res, next) => {
+app.post("/register", async (req, res, next) => {
 
    console.log("REQUEST: ".yellow + "Creating a new user");
 
-   var userIsMod = req.body.newMod;
+   // Add the stats to user
    var userData = req.body.user;
+   userData.stats = { games: 0, win: 0, lose: 0, draw: 0 }
 
-   if (userIsMod) {
-      // In this case the user is a new moderator, so update it inside the database
-      // Update infos and log in
-      var adminId = req.body.adminId;
-      
-      // TODO: Remove it and create a new user
-      
-   } else {
-      // Add the stats to user
-      userData.stats = {
-         games: 0,
-         win: 0,
-         lose: 0,
-         draw: 0
+   if (req.body.newMod) {
+      // In this case the user is a new moderator, remove the temporary moderator
+      // and set the roles to the new user
+      try {
+         await user.getModel().findByIdAndDelete(req.body.adminId);
+      } catch (err) {
+         // An error occurred
+         console.log("ERROR: ".red + "An error occurred while deleting the temporary moderator! Error: " + err);
+         return next({ statusCode: 400, error: true, message: "DB error: " + err });
       }
-   
-      // This user is a normal user so he hasn't any roles.
-      // It is necessary to crate him, add it inside mongoDB and
-      // return a response that contain the JWT (status: 200)
 
+      // Set the moderator role is enabled
+      userData.roles = { mod: { isEnabled: true } }
+
+   } else {
       // Normal user, so no roles
       userData.roles = {};
+   }
 
-      // Create a user using Mongo using request body where the informations are stored
-      var newUser = user.newUser(userData);
+   // It is necessary to crate the user, add it inside mongoDB and
+   // return a response that contain the JWT (status: 200)
 
-      // Check if user put a password
-      if (!userData.password) return next({ statusCode: 404, error: true, message: "Password field missing" });
+   // Create a user using Mongo using request body where the informations are stored
+   var newUser = user.newUser(userData);
 
+   // Check if user put a password, if not return an error
+   if (!userData.password) return next({ statusCode: 404, error: true, message: "Password field missing" });
+   // Oterwise, set the password, using digest and salt
+   newUser.setPassword(userData.password);
+
+   try {
       // Save an user inside MongoDB
-      newUser.setPassword(userData.password);
-      newUser.save().then(() => {
-         console.log("SUCCESS: ".green + "User has been registrated");
-         // Create the token with useful informations
-         var token = {
-            username: newUser.username,
-            email: newUser.email,
-            id: newUser._id,
-            roles: newUser.roles
-         }
-         // Now sign the token and return it inside the response
-         var token_signed = jsonwebtoken.sign(token, process.env.JWT_SECRET, { expiresIn: '1h' });
-         return res.status(200).json({ error: false, token: token_signed });
-      }).catch((error) => {
-         // An error occurred
-         console.log("ERROR: ".red + "An error occurred while creating a new user! Error: " + error);
-         if (error.reason === 11000) return next({ statusCode: 404, error: true, message: "User already exists" });
-         return next({ statusCode: 404, error: true, message: "DB error: " + error.errmsg });
-      })
+      await newUser.save();
+
+      // Then, create the token with useful informations
+      var token = { username: newUser.username, email: newUser.email, id: newUser._id, roles: newUser.roles }
+      // Now sign the token and return it inside the response
+      var token_signed = jsonwebtoken.sign(token, process.env.JWT_SECRET, { expiresIn: '1h' });
+      return res.status(200).json({ error: false, token: token_signed });
+   } catch (err) {
+      // An error occurred
+      console.log("ERROR: ".red + "An error occurred while creating a new user! Error: " + err);
+      if (err.reason === 11000) return next({ statusCode: 404, error: true, message: "User already exists" });
+      return next({ statusCode: 404, error: true, message: "DB error: " + err });
    }
 })
 
@@ -607,45 +592,28 @@ app.route("/game").get(auth, async (req, res, next) => {
    // The match param inside query is used to memorize which match user wants to knwo more informations
    // Useful for a participant and for a player who is only watching the game
    if (req.query.match) {
-      var matchId: any = req.query.match; // Get the match id from the query
-
       try {
          // Get match informations
-         var matchInfos: any = await match.getModel().findById(matchId);
+         var matchInfos: any = await match.getModel().findById(req.query.match);
+
+         // return match informations inside the response
          console.log("SUCCESS: ".green + "Retrieve match infos from the server and return it as response!");
-
-         // Check if the match is over. If true, just check who wins
-         if (matchInfos.isOver == true) {
-            var matchResult = match.getWinner(matchInfos.grid);
-
-            var winnerId;
-            var participants = await match.getModel().findById(req.query.match, { participants: 1 });
-
-            // Check the winner if the match isn't over in a draw
-            if (matchResult !== "DRAW") {
-               var result = participants["participants"];
-               winnerId = result.find(elem => elem["colour"] == matchResult)["_id"];
-            } else { // Otherwise, draw is the result
-               winnerId = "DRAW";
-            }
-            return res.status(200).json({ winner: winnerId, matchInfos: matchInfos });
-         } else {
-            // Otherwise match is not over, so just return the informations
-            return res.status(200).json(matchInfos);
-         }
+         return res.status(200).json(matchInfos);
       } catch (err) {
          // An error occurred
          console.log("ERROR: ".red + "An error occurred while getting match informations! Error: " + err);
          return next({ statusCode: 400, error: true, message: "DB error: " + err });
       }
-   } else { // There is no query parameters, so in this case just provide all the matches that arent' over
-      match.getModel().find({ isOver: false }, { _id: 1, timestamp: 1 }).sort({ timestamp: -1 }).then((data) => {
-         console.log("SUCCESS: ".green + "Retrieving list of the matches that aren't over");
-         return res.status(200).json(data);
-      }, (err) => {
+   } else {
+      // There is no query parameters, so in this case just provide all the matches that arent' over
+      try {
+         var allMatches = await match.getModel().find({ isOver: false }, { _id: 1, timestamp: 1 }).sort({ timestamp: -1 });
+         return res.status(200).json(allMatches);
+      } catch (err) {
+         // An error occurred
          console.log("ERROR: ".red + "An error occurred while retrieving the list of the matches! Error: " + err);
          return next({ statusCode: 400, error: true, message: "DB error: " + err });
-      });
+      }
    }
 }).post(auth, async (req, res, next) => {
 
@@ -653,89 +621,70 @@ app.route("/game").get(auth, async (req, res, next) => {
    var requestBody = req.body;
    // Check if inside the body there is the match id
    if (req.query.match) {
+
+      // Check if the match is over or not
       var matchResult = match.getWinner(requestBody.grid);
+      // The match is not over
       if (matchResult === undefined) {
-         // Update the match document putting the new move makes from an user and changing the turn
-         match.getModel().updateOne({ _id: req.query.match }, {
-            $set: {
-               grid: requestBody["grid"],
-               turn: requestBody["turn"]
-            }
-         }).then(() => {
-            console.log("SUCCESS: ".green + "Update match values inside database!");
+         try {
+            // Update the match using the informations present inside the body of the request and the turn
+            await match.getModel().findByIdAndUpdate(req.query.match, { $set: { grid: requestBody["grid"], turn: requestBody["turn"] } });
 
             // If everything ok, just emit to all the sockets in listening inside this match
             ios.emit("match_update_" + req.query.match);
 
             // And return a status code 200
-            return res.status(200).json({
-               error: false,
-               message: "Match update!"
-            })
-         }, (err) => {
-            console.log("ERROR: ".red + "Cannot update match informations!");
-            return next({
-               statusCode: 400,
-               error: true,
-               message: "DB error: " + err
-            })
-         });
+            console.log("SUCCESS: ".green + "Update match values inside database!");
+            return res.status(200).json({ error: false, code: "MATCH_UPDATE", message: "Match update!" });
+
+         } catch (err) {
+            // An error occurred
+            console.log("ERROR: ".red + "Cannot update match informations! Error: " + err);
+            return next({ statusCode: 400, error: true, code: "MATCH_UPDATE_ERROR", message: "DB error: " + err });
+         }
       } else {
+         // Otherwise, the match is over
+         var winnerColour;
 
-         var winnerId;
-         var participants = await match.getModel().find({ _id: req.query.match }, { participants: 1 });
-
-         // Check if the participants are avaible
-         if (participants.length === 0) {
+         try {
+            // Get the winner colour if the match isn't ended in a draw
+            var getPart = await match.getModel().findById(req.query.match, { participants: 1 });
+            if (matchResult !== "DRAW") {
+               var participants: Array<any> = getPart["participants"];
+               winnerColour = participants.find(elem => elem["colour"] == matchResult)["colour"];
+            } else {
+               winnerColour = "DRAW";
+            }
+         } catch (err) {
+            // An error occurred
+            console.log("ERROR: ".red + "An error occurred while retrieving the participants from the match! Error: " + err);
             return next({ statusCode: 400, error: true, message: "Unable to retrieve the participants" });
          }
 
-         // Check the winner if the match isn't over in a draw
-         if (matchResult !== "DRAW") {
-            var result = participants[0]["participants"];
-            winnerId = result.find(elem => elem["colour"] == matchResult)["_id"];
-         } else { // Otherwise, draw is the result
-            winnerId = "draw";
-         }
-
-         // Now update the status of the match
-         match.getModel().updateOne({ _id: req.query.match }, {
-            $set: {
-               isOver: true,
-               grid: requestBody["grid"]
-            }
-         }).then(() => {
+         try {
+            // Update the match informations saving who wins the match and setting the isOver flag to true
+            await match.getModel().findByIdAndUpdate(req.query.match, { $set: { isOver: true, grid: requestBody["grid"], winner: winnerColour } });
             console.log("SUCCESS: ".green + "The match is updated and set to over, there is a winner!");
-            ios.emit("match_update_" + req.query.match, winnerId); // Just emit e match update to the sockets connected and pass the winner id
-         }, (err) => { // Check and log it in case of error
+            // Just emit match update to the sockets connected. In this way the are gonna to retrieve the match informations again
+            ios.emit("match_update_" + req.query.match);
+         } catch (err) {
+            // An error occurred
             console.log("ERROR: ".red + "An error has occurred while updating and closing the match! Error: " + err);
             return next({ statusCoode: 400, error: true, message: "DB error: " + err });
-         });
+         }
 
          // Pass each user of the participants and update his stats based if he win, lose or draw.
-         var getParticipants: Array<any> = participants[0]["participants"];
-         getParticipants.forEach(elem => {
-            if (winnerId == "draw") { // Match is a draw, so just update the draw stats
-               user.getModel().updateOne({ _id: elem["_id"] }, { $inc: { "stats.draw": 1, "stats.games": 1 } }).then(() => {
-                  console.log("SUCCESS: ".green + "Update user stats");
-               }, (err) => {
-                  console.log("ERROR: ".red + "Database error: " + err);
-                  return next({ statusCode: 400, error: true, message: "DB error: " + err });
-               });
-            } else if (winnerId == elem["_id"]) { // Check if the user is the winner
-               user.getModel().updateOne({ _id: elem["_id"] }, { $inc: { "stats.win": 1, "stats.games": 1 } }).then(() => {
-                  console.log("SUCCESS: ".green + "Update user stats");
-               }, (err) => {
-                  console.log("ERROR: ".red + "Database error: " + err);
-                  return next({ statusCode: 400, error: true, message: "DB error: " + err });
-               });
-            } else { // Otherwise, it is the loser
-               user.getModel().updateOne({ _id: elem["_id"] }, { $inc: { "stats.lose": 1, "stats.games": 1 } }).then(() => {
-                  console.log("SUCCESS: ".green + "Update user stats");
-               }, (err) => {
-                  console.log("ERROR: ".red + "Database error: " + err);
-                  return next({ statusCode: 400, error: true, message: "DB error: " + err });
-               });
+         var participants: Array<any> = getPart["participants"];
+         participants.forEach(async (elem) => {
+            try {
+               // Update participants stats based if who wins and who lose, or if the match endend in a draw
+               if (winnerColour == "DRAW") await user.getModel().findByIdAndUpdate(elem["_id"], { $inc: { "stats.draw": 1, "stats.games": 1 } });
+               else if (winnerColour == elem["colour"]) await user.getModel().findByIdAndUpdate(elem["_id"], { $inc: { "stats.win": 1, "stats.games": 1 } });
+               else await user.getModel().findByIdAndUpdate(elem["_id"], { $inc: { "stats.lose": 1, "stats.games": 1 } });
+            } catch (err) {
+               // An error occurred
+               console.log("ERROR: ".red + "An error occurred while updating participant stats! Error: " + err);
+               return next({ statusCode: 400, error: true, code: "MATCH_USER_UPDATE_ERROR", message: "DB error: " + err });
             }
          });
 
@@ -746,6 +695,39 @@ app.route("/game").get(auth, async (req, res, next) => {
       // Return an error
       return next({ statusCode: 500, error: true, message: "Unable to find a suitable handler!" });
    }
+}).delete(auth, async (req, res, next) => {
+
+   // In this case, set the winner the user that doesn't quit
+   if (req.query.user && req.query.match) {
+      try {
+         var getMatch: any = await match.getModel().findById(req.query.match, { participants: 1, _id: 0 });
+         var getWinner = getMatch.participants.find(elem => elem["_id"] !== req.query.user);
+
+         console.log(getWinner);
+
+         // Find the other participants, he is the winner
+         if (getWinner !== undefined) {
+            console.log("HERE");
+            await match.getModel().findByIdAndUpdate(req.query.match, { $set: { isOver: true, winner: getWinner["colour"] } });
+            ios.emit("match_update_" + req.query.match);
+
+            return res.status(200).json({ error: false, message: "User removed from the match! Update the match." });
+         } else {
+            // An error occurred
+            console.log("ERROR: ".red + "An error occurred while a participants quit the match!");
+            return next({ statusCode: 400, error: true, code: "QUIT_MATCH_ERROR", message: "Unable to retrieve the participants" });
+         }
+      } catch (err) {
+         // An error occurred
+         console.log("ERROR: ".red + "An error occurred while a participants quit the match! Error: " + err);
+         return next({ statusCode: 400, error: true, code: "QUIT_MATCH_ERROR", message: "DB error: " + err });
+      }
+   } else {
+      // An error occurred
+      console.log("ERROR: ".red + "Missing some parameters");
+      return next({ statusCode: 404, error: true, code: "MISSING_PARAMETERS", message: "Missing parameters" });
+   }
+
 })
 
 

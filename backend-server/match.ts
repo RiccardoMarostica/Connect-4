@@ -26,6 +26,7 @@ export interface Match extends mongoose.Document {
    messages: Array<message.Message>,
    isOver: boolean,
    turn: string,
+   winner: string,
    grid: [][],
    timestamp: string
 }
@@ -65,6 +66,9 @@ var matchSchema = new mongoose.Schema({
       type: mongoose.SchemaTypes.Boolean,
       required: true
    },
+   winner: {
+      type: mongoose.SchemaTypes.String
+   },
    turn: {
       type: mongoose.SchemaTypes.ObjectId,
       required: true
@@ -99,6 +103,14 @@ export function getModel(): mongoose.Model<mongoose.Document> {
       matchModel = mongoose.model<Match>('Matches', getSchema())
    }
    return matchModel;
+}
+
+
+export function updateGrid (x: number, y: number, grid: any, colour: string): any {
+   if (grid[x][y] === "EMPTY") {
+      grid[x][y] === colour;
+   }
+   return grid;
 }
 
 /**

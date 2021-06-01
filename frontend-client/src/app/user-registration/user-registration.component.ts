@@ -10,9 +10,8 @@ import { UserHttpService } from '../user-http.service';
 export class UserRegistrationComponent implements OnInit {
 
    public errorMessage: string | undefined = undefined;
-   public user: any = { email: '', password: '', username: '', avatar: '' };
-
-   adminId: any = null;
+   public user: any = { email: '', password: '', username: '', avatar: '' }; // User template informations needs before signup
+   adminId: any = null; // String or null, used to check if this compoment is used for a normal login or for the first login of a new moderator
 
    constructor(public us: UserHttpService, public router: Router, private activatedRoute: ActivatedRoute) { }
 
@@ -26,15 +25,13 @@ export class UserRegistrationComponent implements OnInit {
       })
    }
 
-   signup() {
-
+   /**
+    * Function used to make the signup to the application
+    */
+   signup(): void {
       // Creating a body request, setting this user is not a new moderator
       // and also the user informations
-      var body = {
-         newMod: false,
-         user: this.user,
-         adminId: ''
-      }
+      var body = { newMod: false, user: this.user, adminId: '' }
 
       // Check if the admin id is not null. In this case the admin id is used to 
       // update user informations
@@ -53,6 +50,10 @@ export class UserRegistrationComponent implements OnInit {
       })
    }
 
+   /**
+    * Function used to set the user avatar inside the object
+    * @param imageName name of the icon
+    */
    setAvatar(imageName: string): void {
       console.log(imageName);
       this.user.avatar = imageName;

@@ -64,4 +64,20 @@ export class MatchHttpService {
          })
       });
    }
+
+   quit_match(matchId: string, userId: string): Observable<any> {
+      return this.http.delete(this.user.url + "/game", {
+         headers: new HttpHeaders({
+            authorization: 'Bearer ' + this.user.get_token(),
+            'cache-control': 'no-cache',
+            'Content-Type': 'application/json',
+         }),
+         params: new HttpParams({
+            fromObject: {
+               user: userId,
+               match: matchId
+            }
+         })
+      });
+   }
 }
