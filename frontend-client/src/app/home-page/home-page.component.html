@@ -22,7 +22,9 @@
             <ng-template #userBlock>
                <a class="nav-link" [routerLink]="['/user-list']">Profili amici</a>
             </ng-template>
-
+            <li class="nav-item">
+               <button type="button" class="btn btn-outline-danger" (click)="logout()">Logout</button>
+            </li>
          </ul>
       </div>
    </nav>
@@ -99,16 +101,47 @@
    </div>
 </div>
 
-<div class="row">
+<div class="row mx-4 my-4">
    <!-- Code used to enter in waiting status or watching the game in progress -->
    <div class="col-9">
-      <button type="button" class="btn btn-outline-primary" (click)="open('WAITING ROOM', waitingRoom)">Ricerca
-         partita</button>
-      <button type="button" class="btn btn-outline-primary" [routerLink]="['/match-list']">Visualizza partite
-         iniziate</button>
+      <p>
+         Benvenuto all'interno dell'applicazione Connect-4.<br>
+         Connect-4 (conosciuto in italiano come Forza-4) è un gioco di allineamento di solito su una matrice di 6 righe
+         e 7 colonne.<br>
+         L'obiettivo di questo gioco è di mettere in fila (orizzontale, verticale o diagonale) quattro pedine dello
+         stesso colore. Le pedine in questione
+         saranno di due colori: rosso e giallo.<br>
+         All'interno dell'applicazione sono disponibili varie funzionalità:
+      </p>
+      <ul>
+         <li>Ricerca partita: cerca una partita contro un giocatore randomico le cui statistiche siano simili alle tue.
+         </li>
+         <li>Visualizza partite iniziate: mostra tutte le partite in corso in cui è possibile accedere e visualizzare il
+            corso del match.</li>
+         <li>Aggiunta amico: è possibile creare la propria lista di amici, con i quali è possibile interagire chattando
+            assieme e potendo pur richiedere di giocare assieme.</li>
+         <li>Profilo giocatore: all'interno del profilo giocatore saranno presente le proprie informazioni personali e
+            le statistiche di gioco ottenute nel tempo.</li>
+      </ul>
+      <p *ngIf="user.is_admin()">
+         Inoltre, essendo che sei un moderatore avrai a disposizione delle funzionalità aggiuntive.<br>
+         In primis è possibile visualizzare le informazioni di tutti gli utenti dell'applicazione. Per ogni utente, poi, è inserita la possibilità di rimuovere un utente dall'applicazione.<br>
+         Inoltre, un moderatore può aggiungere dei nuovi moderatori creando degli utenti contemporanei.
+      </p>
+      <div class="my-2">
+         <label>Vuoi iniziare a giocare?</label>
+         <button type="button" class="btn btn-outline-primary mx-3" (click)="open('WAITING ROOM', waitingRoom)">Ricerca
+            partita</button>
+      </div>
+      <div class="my-2">
+         <label>Altrimenti, se vuoi seguire una partita</label>
+         <button type="button" class="btn btn-outline-primary mx-3" [routerLink]="['/match-list']">Visualizza partite
+            iniziate</button>
+      </div>
    </div>
    <!-- Code used for the friendlist -->
    <div class="col-3">
+      <h2>Lista amici</h2>
       <div *ngFor="let friend of friendList" class="card" style="margin: 5px">
          <div class="nearby-user">
             <div class="row">
@@ -211,8 +244,7 @@
    </div>
    <div class="modal-footer">
       <button type="button" class="btn btn-outline-secondary"
-         [disabled]=" !mail.valid || !password.valid || !username.valid"
-         (click)="add_new_moderator()">Aggiungi</button>
+         [disabled]=" !mail.valid || !password.valid || !username.valid" (click)="add_new_moderator()">Aggiungi</button>
       <button type="button" class="btn btn-outline-danger" (click)="modal.dismiss('Stop creating')">Esci</button>
    </div>
 </ng-template>

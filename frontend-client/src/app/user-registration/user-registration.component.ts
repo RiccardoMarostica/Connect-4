@@ -16,11 +16,19 @@ export class UserRegistrationComponent implements OnInit {
    constructor(public us: UserHttpService, public router: Router, private activatedRoute: ActivatedRoute) { }
 
    ngOnInit(): void {
-      // First of all retrieve the if of the friend passed as router params
+
+      // Token is present, so avoid user to go to registration and go to home-page (this means that user is logged)
+      if (this.us.check_token_presence()) {
+         this.router.navigate(["/home-page"]);
+      }
+
+      // Check if in the URL is present an id. This means that a moderator was loggin for the first time.
+      // Its informations needs to be updated before make login
       this.activatedRoute.paramMap.subscribe(async (params) => {
-         // Try to get the info from the server
+         // Try to get the user id from the params
          this.adminId = params.get("user_id");
       }, (err) => {
+         console.log("ERROR: " + err);
          this.router.navigate(["/login"]);
       })
    }
@@ -35,7 +43,7 @@ export class UserRegistrationComponent implements OnInit {
 
       // Check if the admin id is not null. In this case the admin id is used to 
       // update user informations
-      if (this.adminId !== undefined) { 
+      if (this.adminId !== null) {
          body.newMod = true;
          body.adminId = this.adminId;
       }

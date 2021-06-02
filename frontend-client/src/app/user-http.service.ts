@@ -27,6 +27,13 @@ export class UserHttpService {
       }
    }
 
+   /**
+    * Function used to send a http request to the server asking to
+    * make the login to the application.
+    * @param mail 
+    * @param password 
+    * @returns 
+    */
    login(mail: string, password: string): Observable<any> {
 
       console.log("Making login");
@@ -47,12 +54,13 @@ export class UserHttpService {
       return this.http.post(this.url + "/login", "", options);
    }
 
+   /**
+    * Make an HTTP call to the server sending the datas to memorize from the registration form
+    * In this case make a POST request to specific endpoint and get from the response the token
+    * @param user 
+    * @returns 
+    */
    registration(user: any): Observable<any> {
-
-      /**
-       * Make an HTTP call to the server sending the datas to memorize from the registration form
-       * In this case make a POST request to specific endpoint and get from the response the token
-       */
       return this.http.post(this.url + "/register", user, {
          headers: new HttpHeaders({
             'cache-control': 'no-cache',
@@ -65,6 +73,16 @@ export class UserHttpService {
             localStorage.setItem('server_token', this.token);
          })
       )
+   }
+
+   /**
+    * Function used to make user logout. Just delete the token informations and redirect the user to
+    * the main page
+    */
+   logout() {
+      console.log('Logging out');
+      this.token = '';
+      localStorage.setItem('server_token', this.token);
    }
 
    /**
@@ -260,6 +278,17 @@ export class UserHttpService {
     */
    get_token(): any {
       return this.token;
+   }
+
+   /**
+    * Function used to check if the token is present inisde the localStorage
+    * @returns true if is present, false otherwise
+    */
+   check_token_presence(): boolean {
+      if (localStorage.getItem("server_token") != undefined && localStorage.getItem("server_token") != '') {
+         return true;
+      }
+      return false;
    }
 
    /**

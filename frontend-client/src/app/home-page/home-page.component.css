@@ -2,10 +2,6 @@ body{
    margin-top:20px;
    background:#FAFAFA;    
 }
-/*==================================================
- Nearby People CSS
- ==================================================*/
-
 .people-nearby .google-maps{
  background: #f8f8f8;
  border-radius: 4px;

@@ -226,4 +226,9 @@ export class HomePageComponent implements OnInit {
          this.moderatorMessage = "ERROR";
       }
    }
+
+   logout(): void {
+      this.user.logout();
+      this.router.navigate(["/"]);
+   }
 }

@@ -22,6 +22,10 @@ export class UserLoginComponent implements OnInit {
    constructor(private user: UserHttpService, private router: Router) { }
 
    ngOnInit(): void {
+      // Check if the token is present inside the localstorage. If true, just redirect user to home page
+      if (this.user.check_token_presence()) {
+         this.router.navigate(["/home-page"]);
+      }
    }
 
    login(mail: string, password: string, remember: boolean) {
@@ -29,8 +33,6 @@ export class UserLoginComponent implements OnInit {
          if (data.newAdmin) { // A response contain a flag newAdmin, so this user has to update his data
             this.router.navigate(["/registration", data.userid]);
          } else {
-            // User logged in
-            console.log("DATA: " + JSON.stringify(data));
 
             // Set the token and in case memorize it inside local storage
             this.user.set_token(data['token']);
